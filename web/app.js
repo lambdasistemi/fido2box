@@ -93,7 +93,7 @@ function keyPicker(id, inThisBox) {
     if (!hit) { input.value = ''; hint.textContent = 'This is not a key you have used before. Give it a new name.'; }
     else if (already) hint.textContent = '"' + first(hit) + '" is already in this box. Plug in a different key.';
     else { input.value = first(hit); hint.textContent = 'This is "' + first(hit) + '" (it opens ' + hit.boxes.join(', ') + ').'; }
-  }, { keep: true }) } }, 'Which key is this? (touch)') : null;
+  }, { keep: true }) } }, 'Which key is this? (PIN, touch)') : null;
   return { node: h('div', null, input, chips.length ? h('p', { class: 'small muted' }, 'Keys you have used: ', chips) : null, find, hint), name: () => input.value.trim(), alreadyIn: () => already };
 }
 // ---------- Boxes ----------
@@ -168,8 +168,8 @@ function keysTab(name, rec, U) {
       h('td', null, h('strong', null, k.name), ' ', S.detected === k.id ? chip('inserted now', 'live') : null), h('td', { class: 'muted small' }, shortId(k.id)),
       h('td', { class: 'r' }, ks.length > 1 ? confirmBtn('k' + i, 'Remove', async () => { await commit(name, ks.filter((_, j) => j !== i)); }) : h('span', { class: 'muted small' }, 'the only security key'))))),
       h('p', { class: 'muted small' }, 'Removing a key does not revoke it: anyone who ever had it can still open older copies of this box. To revoke, make a new box.'),
-      h('button', { id: 'detectBtn', on: { click: act(async () => { const id = await detectKey(ks.map((k) => k.id)); S.detected = id; const k = ks.find((x) => x.id === id); say(k ? '"' + k.name + '" is inserted.' : 'A key answered that is not in this box.'); }) } }, 'Detect the inserted key (touch)')),
-    h('div', { class: 'card' }, h('h2', null, 'Add a security key'), U ? [h('label', null, 'Security key'), kp.node, h('p', { class: 'muted small' }, 'Plug in the hardware key you want to add, and only that one. It asks for its PIN and a touch, twice.'),
+      h('button', { id: 'detectBtn', on: { click: act(async () => { const id = await detectKey(ks.map((k) => k.id)); S.detected = id; const k = ks.find((x) => x.id === id); say(k ? '"' + k.name + '" is inserted.' : 'A key answered that is not in this box.'); }) } }, 'Detect the inserted key (PIN, touch)')),
+    h('div', { class: 'card' }, h('h2', null, 'Add a security key'), U ? [h('label', null, 'Security key'), kp.node, h('p', { class: 'muted small' }, 'Plug in the hardware key you want to add, and only that one. It asks for its PIN and a touch, twice. Enter the PIN carefully: wrong PINs use up the number of tries the key allows.'),
       h('button', { class: 'primary', id: 'addKey', on: { click: act(async () => { const v = kp.name(); if (kp.alreadyIn()) throw new Error('That key is already in this box.'); if (!v) throw new Error('Give the security key a name, for example hk-home.'); if (ks.some((k) => k.name === v)) throw new Error('A key with that name is already in this box.');
         const added = await withKey(() => enrolKey({ ...rec.box, keys: keysOf(rec.box) }, v, U.data)); await commit(name, added.keys); say('Added "' + v + '".'); }) } }, 'Add this security key')]
       : h('p', { class: 'muted' }, 'Unlock the box first (Items tab): adding a security key needs the box open.')));
@@ -220,8 +220,8 @@ function keysView() {
   for (const r of S.boxes) for (const k of keysOf(r.box)) { const e = map.get(k.id) || { id: k.id, names: new Set(), boxes: [] }; e.names.add(k.name); e.boxes.push(r.name); map.set(k.id, e); }
   const all = [...map.values()];
   return h('div', null, h('div', { class: 'row sp' }, h('h1', null, 'Security keys'),
-      h('div', { class: 'row' }, h('button', { id: 'testKey', on: { click: act(async () => { S.probe = await withKey(probeKey); }) } }, 'Test the plugged-in key'), h('button', { class: 'primary', id: 'detectAll', on: { click: act(async () => { if (!all.length) throw new Error('No security keys are known here yet. They belong to boxes: make a box, or import one, then Detect can recognise its keys.'); const id = await detectKey(all.map((e) => e.id)); S.detected = id; const e = map.get(id); say(e ? '"' + [...e.names].join(', ') + '" is inserted.' : 'A key answered that is not in any box here.'); }) } }, 'Detect the inserted key (touch)'))),
-    h('p', { class: 'muted small' }, 'A web page cannot see which key is plugged in until you touch it. Detection asks the key to sign and matches its answer to the keys listed in your boxes.'),
+      h('div', { class: 'row' }, h('button', { id: 'testKey', on: { click: act(async () => { S.probe = await withKey(probeKey); }) } }, 'Test the plugged-in key'), h('button', { class: 'primary', id: 'detectAll', on: { click: act(async () => { if (!all.length) throw new Error('No security keys are known here yet. They belong to boxes: make a box, or import one, then Detect can recognise its keys.'); const id = await detectKey(all.map((e) => e.id)); S.detected = id; const e = map.get(id); say(e ? '"' + [...e.names].join(', ') + '" is inserted.' : 'A key answered that is not in any box here.'); }) } }, 'Detect the inserted key (PIN, touch)'))),
+    h('p', { class: 'muted small' }, 'A web page cannot see which key is plugged in until you use it. Detection asks the key to sign (most keys, like yours, ask for the PIN and a touch) and matches its answer to the keys listed in your boxes. A wrong PIN uses up one of the tries the key allows.'),
     S.probe ? h('div', { class: 'card', id: 'probeResult' }, h('h2', null, 'The key answered'),
       h('p', null, S.probe.pin === false ? 'It did not verify your PIN: it may have no PIN set.' : S.probe.pin ? 'PIN verified: yes.' : 'PIN verification: not reported by this browser.'),
       h('p', null, S.probe.prf ? 'Can hold a box key (PRF / hmac-secret): yes.' : 'Can hold a box key (PRF / hmac-secret): NO. This key cannot be used for boxes.'),
