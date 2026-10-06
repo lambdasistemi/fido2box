@@ -39,7 +39,7 @@ const set = (w, id, v) => { w.document.getElementById(id).value = v; };
   ok(file.v === 2 && file.keys.length === 1 && file.items.length === 2 && file.rpId === 'localhost', 'file: version 2, one key, two items, rpId localhost');
   ok(!JSON.stringify(file).match(/1Password|Google|A3-TEST|backup-code|accounts\.google/), 'file leaks no title, address or secret');
   click(w, 'verify'); await tick(400);
-  ok(/opens: 2 item/.test(w.document.getElementById('verifyMsg').textContent), 'test button: opens with 2 items');
+  ok(/opens: 2 thing/.test(w.document.getElementById('verifyMsg').textContent), 'test button: opens with 2 items');
   // ===== unlock page on that file =====
   w = await page('index.html', file);
   ok(!w.document.getElementById('demo').hidden, 'unlock page shows the rehearsal banner on localhost');
