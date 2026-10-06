@@ -47,5 +47,50 @@ const prf = (s) => B.enc.encode(s.padEnd(32, '.')).slice(0, 32);       // a fake
   assert.ok(s('https://my.1password.com/signin')); assert.ok(s('http://localhost:8099/x'));
   for (const bad of ['javascript:alert(1)', 'data:text/html,hi', 'http://example.com', 'ftp://x.y', 'not a url', '']) assert.strictEqual(s(bad), '', bad);
   ok('only https (and http on localhost) addresses may be opened');
+  // 9. saving to GitHub (against a fake API)
+  {
+    const fakeGh = (state) => async (url, o = {}) => {
+      state.calls.push({ url, method: o.method || 'GET', headers: o.headers, body: o.body });
+      const res = (status, body) => ({ status, ok: status >= 200 && status < 300, json: async () => body });
+      if (!o.method) return state.get || res(404, {});
+      return state.put || res(201, { commit: { sha: 'abc1234def' } });
+    };
+    const text = JSON.stringify({ v: 2, rev: 2, keys: [], items: [] }, null, 2);
+    const asFile = (t) => ({ sha: 'filesha', content: Buffer.from(t).toString('base64').replace(/(.{60})/g, '$1\n') });
+    const err = async (p) => { try { await p; return null; } catch (e) { return e; } };
+    // new file: no sha sent, token in the header, content is the box
+    let st = { calls: [] };
+    assert.strictEqual(await B.saveToGitHub('paolino/fido-box', 'tok', text, 2, fakeGh(st)), 'abc1234def');
+    let put = st.calls.find((c) => c.method === 'PUT'), body = JSON.parse(put.body);
+    assert.strictEqual(put.url, 'https://api.github.com/repos/paolino/fido-box/contents/box.json'); assert.strictEqual(put.headers.Authorization, 'Bearer tok');
+    assert.strictEqual(Buffer.from(body.content, 'base64').toString(), text); assert.ok(!('sha' in body)); assert.strictEqual(body.message, 'box rev 2');
+    ok('save: a new file is created with one commit, token in the header, no sha');
+    // older remote: replaced, with its sha
+    st = { calls: [], get: { status: 200, ok: true, json: async () => asFile(JSON.stringify({ rev: 1 })) } };
+    await B.saveToGitHub('o/r', 't', text, 2, fakeGh(st)); assert.strictEqual(JSON.parse(st.calls.find((c) => c.method === 'PUT').body).sha, 'filesha');
+    ok('save: an older remote box is replaced using its sha');
+    // newer or equal remote with different content: refused, nothing written
+    for (const r of [2, 5]) {
+      st = { calls: [], get: { status: 200, ok: true, json: async () => asFile(JSON.stringify({ rev: r, other: 1 })) } };
+      const e = await err(B.saveToGitHub('o/r', 't', text, 2, fakeGh(st)));
+      assert.ok(e && e.name === 'RemoteNewer' && e.rev === r); assert.ok(!st.calls.some((c) => c.method === 'PUT'));
+    }
+    ok('save: a remote box with the same or a higher rev is never overwritten');
+    // identical: nothing to do
+    st = { calls: [], get: { status: 200, ok: true, json: async () => asFile(text) } };
+    assert.strictEqual(await B.saveToGitHub('o/r', 't', text, 2, fakeGh(st)), 'unchanged'); assert.ok(!st.calls.some((c) => c.method === 'PUT'));
+    ok('save: identical content writes nothing');
+    // errors
+    st = { calls: [], get: { status: 401, ok: false, json: async () => ({}) } };
+    assert.strictEqual((await err(B.saveToGitHub('o/r', 't', text, 2, fakeGh(st)))).name, 'BadToken');
+    st = { calls: [], put: { status: 404, ok: false, json: async () => ({}) } };
+    assert.strictEqual((await err(B.saveToGitHub('o/r', 't', text, 2, fakeGh(st)))).name, 'NoRepo');
+    st = { calls: [], put: { status: 422, ok: false, json: async () => ({}) } };
+    assert.strictEqual((await err(B.saveToGitHub('o/r', 't', text, 2, fakeGh(st)))).name, 'Conflict');
+    ok('save: bad token, unreachable repository and conflicts are told apart');
+    // large files survive base64 (was a stack limit with spread)
+    const big = new Uint8Array(300000).map((_, i) => i % 251); assert.deepStrictEqual(B.unb64(B.b64(big)), big);
+    ok('base64 handles a 300 KB file');
+  }
   console.log('\n' + n + ' checks passed');
 })().catch((e) => { console.error('FAILED:', e.message); process.exit(1); });

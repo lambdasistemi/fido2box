@@ -61,3 +61,7 @@ The repository that holds your box file (for example `owner/fido-box`, private) 
 ## Deployment
 
 `.github/workflows/pages.yml` publishes `web/` to GitHub Pages on every push to `main`. It adds `COMMIT` and `SHA256SUMS` (the hash of every served file) and signs a provenance attestation for `SHA256SUMS`. `scripts/verify.sh https://fido2box.dev` checks that the live files match the signed list and the files in that commit; `.github/workflows/verify.yml` runs it every week. `web/config.js` sets the default box repository for this deployment.
+
+## Saving to GitHub
+
+With a repository set, the editor can save the box itself: **Save to GitHub** writes `box.json` in that repository with one commit, through the GitHub API. It needs a fine-grained token limited to that one repository (Contents: read and write). The token is kept as an item inside the box, so unlocking the box is what lets the page save; it is never shown and is sent only to `api.github.com`. It refuses to overwrite a box whose `rev` is the same or higher. Fine-grained tokens expire (at most a year): when GitHub refuses the token, make a new one and replace it in the editor. The downloaded file and the upload page remain as fallbacks.

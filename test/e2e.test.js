@@ -146,6 +146,51 @@ const set = (w, id, v) => { w.document.getElementById(id).value = v; };
   typeRepo(w, 'someone/their-box');
   ok(w.document.getElementById('repoGet').href === 'https://github.com/someone/their-box/blob/main/box.json', 'a typed owner/name becomes the link');
   ok(w.localStorage.getItem('box-repo') === 'someone/their-box', 'a valid name is remembered in the browser');
+  // ===== saving to GitHub from the page (fake GitHub API) =====
+  const gh = { file: null, puts: [], auth: [] };
+  const ghFetch = async (u, o = {}) => {
+    if (!u.startsWith('https://api.github.com/')) return (u === 'box.json' && gh.file) ? { ok: true, status: 200, json: async () => JSON.parse(gh.file) } : { ok: false, status: 404 };
+    gh.auth.push((o.headers || {}).Authorization);
+    if (!o.method) return gh.file ? { status: 200, ok: true, json: async () => ({ sha: 's' + gh.puts.length, content: Buffer.from(gh.file).toString('base64') }) } : { status: 404, ok: false, json: async () => ({}) };
+    const b = JSON.parse(o.body); gh.file = Buffer.from(b.content, 'base64').toString(); gh.puts.push(b);
+    return { status: 201, ok: true, json: async () => ({ commit: { sha: 'abc1234def0' } }) };
+  };
+  async function pageGh(qs) {
+    const html = fs.readFileSync(path.join(DIR, 'index.html'), 'utf8').replace('<script src="box.js"></script>', '<script>' + fs.readFileSync(path.join(DIR, 'box.js'), 'utf8') + '</script>');
+    const dom = new JSDOM(html, { runScripts: 'dangerously', url: 'http://localhost:8099/' + qs, pretendToBeVisual: true,
+      beforeParse(w) { Object.defineProperty(w, 'crypto', { value: nodeCrypto.webcrypto, configurable: true }); w.TextEncoder = TextEncoder; w.TextDecoder = TextDecoder; w.btoa = btoa; w.atob = atob; w.fetch = ghFetch; w.__copied = fakeKey(w); w.URL.createObjectURL = () => 'blob:x'; } });
+    await tick(120); return dom.window;
+  }
+  w = await pageGh('?repo=paolino/fido-box');
+  click(w, 'newBtn'); await tick(100);
+  set(w, 'name', 'Google'); set(w, 'url', 'https://accounts.google.com'); set(w, 'secret', 'g-code'); click(w, 'addItem'); await tick(100);
+  set(w, 'keyName', 'k1'); click(w, 'addKey'); await tick(300);
+  ok(!w.document.getElementById('saveGh').hidden, 'Save to GitHub shows once a repository is given');
+  click(w, 'saveGh'); await tick(100);
+  ok(/no GitHub token/.test(w.document.getElementById('ghMsg').textContent) && gh.puts.length === 0, 'without a token it says so and writes nothing');
+  set(w, 'ghToken', 'ghp_TESTTOKEN'); click(w, 'addToken'); await tick(100);
+  ok(/kept in this box/.test(w.document.getElementById('tokenState').textContent), 'the token is kept as an item in the box');
+  click(w, 'saveGh'); await tick(200);
+  ok(/Saved to GitHub \(commit abc1234\)/.test(w.document.getElementById('ghMsg').textContent), 'Save pushes one commit: ' + w.document.getElementById('ghMsg').textContent);
+  ok(gh.auth.every((a) => a === 'Bearer ghp_TESTTOKEN') && gh.puts.length === 1, 'the token from the box is the one sent, once');
+  const saved = JSON.parse(gh.file);
+  ok(saved.rev === 1 && saved.items.length === 2 && !gh.file.includes('ghp_TESTTOKEN') && !gh.file.includes('Google') && !gh.file.includes('g-code'), 'the stored file is locked: rev 1, 2 items (one is the token), nothing readable');
+  ok(w.document.getElementById('dirty').hidden, 'after saving, the not-saved banner is gone');
+  // a fresh page: the token never shows up in the list you use, but is there to save with
+  w = await pageGh('?repo=paolino/fido-box');
+  click(w, 'go'); await tick(500);
+  ok($$(w, '#items h3').map((h) => h.textContent).join() === 'Google', 'unlock: the token item is not in the list you use');
+  ok(!w.document.body.textContent.includes('ghp_TESTTOKEN'), 'the token is not shown anywhere');
+  click(w, 'edit'); await tick(100);
+  ok(/used to save/.test(w.document.getElementById('list').textContent), 'the editor lists the token as the one used to save');
+  set(w, 'name', 'GitHub'); set(w, 'url', 'https://github.com/login'); set(w, 'secret', 'rc'); click(w, 'addItem'); await tick(100);
+  click(w, 'saveGh'); await tick(300);
+  ok(JSON.parse(gh.file).rev === 2 && gh.puts.length === 2 && gh.puts[1].sha === 's1', 'a second save replaces the file (rev 2, with the old file sha)');
+  // someone saved a newer box meanwhile: the page refuses
+  const newer = JSON.parse(gh.file); newer.rev = 9; gh.file = JSON.stringify(newer);
+  set(w, 'name', 'More'); set(w, 'url', 'https://example.org'); set(w, 'secret', 'm'); click(w, 'addItem'); await tick(100);
+  click(w, 'saveGh'); await tick(300);
+  ok(/newer box \(rev 9\)/.test(w.document.getElementById('ghMsg').textContent) && gh.puts.length === 2, 'a newer box on GitHub is never overwritten');
   // ===== Italian =====
   w = await page('index.html', file, '?lang=it'); click(w, 'go'); await tick(400);
   ok(w.document.getElementById('title').textContent === 'Recupera i tuoi segreti' && /Copia il segreto/.test(w.document.body.textContent), 'Italian version works');

@@ -114,9 +114,18 @@
 
       <div id="outBox" hidden>
         <h2>Save the box</h2>
-        <p class="muted">This page cannot store the box itself. The button gives you a file, <code>box.json</code>. It is locked, so it is safe to keep anywhere. To keep it safe, put it in your box repository: until you do, nothing is stored.</p>
-        <p><a class="small" id="repoPut" target="_blank" rel="noopener noreferrer" hidden style="display:inline-block;text-decoration:none">Open the upload page on GitHub</a></p>
-        <button class="small" id="download">Save the box</button>
+        <p class="muted">The box is one locked file, <code>box.json</code>. Until it is stored somewhere, your changes exist only on this page.</p>
+        <div id="tokenBox" hidden>
+          <p class="muted" id="tokenState"></p>
+          <label class="f muted" for="ghToken">GitHub token for saving (only this repository, Contents: read and write)</label>
+          <input id="ghToken" type="password" autocomplete="off" spellcheck="false">
+          <p><button class="small" id="addToken">Keep this token in the box</button></p>
+        </div>
+        <p><button class="small" id="saveGh" hidden>Save to GitHub</button></p>
+        <div id="ghMsg" class="muted"></div>
+        <p class="muted">Or keep the file yourself:</p>
+        <button class="small" id="download">Download the file</button>
+        <a class="small" id="repoPut" target="_blank" rel="noopener noreferrer" hidden style="display:inline-block;text-decoration:none">Open the upload page on GitHub</a>
         <button class="small" id="verify">Check that a key opens it</button>
         <div id="verifyMsg" class="muted"></div>
         <textarea id="out" hidden readonly></textarea>
@@ -174,16 +183,16 @@ $('s1').textContent = L.s1; $('h1').textContent = L.h1; $('s2').textContent = L.
 $('h2').textContent = L.h2; $('s3').textContent = L.s3;
 // The repository that holds the box file is entered by the user, remembered in this browser, or given in the link (?repo=owner/name).
 const REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
-let repoOk = false;
+let repoOk = false, repoVal = '';
 const remembered = () => { try { return localStorage.getItem('box-repo') || ''; } catch (e) { return ''; } };
 function setRepo(v, store) {
-  v = (v || '').trim(); repoOk = REPO_RE.test(v);
+  v = (v || '').trim(); repoOk = REPO_RE.test(v); repoVal = repoOk ? v : ''; $('saveGh').hidden = !repoOk;
   if (store && repoOk) { try { localStorage.setItem('box-repo', v); } catch (e) {} }
   $('repoGet').hidden = !repoOk; $('repoPut').hidden = !repoOk;
   if (repoOk) { $('repoGet').href = 'https://github.com/' + v + '/blob/main/box.json'; $('repoPut').href = 'https://github.com/' + v + '/upload/main'; }
 }
 $('repo').value = new URLSearchParams(location.search).get('repo') || remembered() || ((window.BOX_DEFAULTS || {}).repo || ''); setRepo($('repo').value, false);
-$('repo').oninput = () => setRepo($('repo').value, true);
+$('repo').oninput = () => { setRepo($('repo').value, true); if (data && vault) render(); };
 $('s0').textContent = L.s0; $('h0').textContent = L.h0; $('fileBtn').textContent = L.fileBtn; $('newBtn').textContent = L.newBtn;
 
 let box = null, vault = null, data = null, plain = [], pending = null, clearTimer = null;
@@ -191,8 +200,9 @@ let box = null, vault = null, data = null, plain = [], pending = null, clearTime
 // ---------- the list you use: Open and Copy ----------
 function showItems() {
   const el = $('items'); el.textContent = '';
-  if (!plain.length) { const p = document.createElement('p'); p.textContent = L.empty; el.appendChild(p); return; }
-  plain.forEach((it) => {
+  const usable = plain.filter((it) => it.title !== TOKEN_TITLE);
+  if (!usable.length) { const p = document.createElement('p'); p.textContent = L.empty; el.appendChild(p); return; }
+  usable.forEach((it) => {
     const wrap = document.createElement('div'); wrap.className = 'item';
     const h = document.createElement('h3'); h.textContent = it.title || '—'; wrap.appendChild(h);
     const row = document.createElement('div'); row.className = 'row';
@@ -270,7 +280,7 @@ function render() {
   const list = $('list'); list.textContent = '';
   plain.forEach((it, i) => {
     const tr = document.createElement('tr');
-    const a = document.createElement('td'); a.textContent = it.title || '(no name)';
+    const a = document.createElement('td'); a.textContent = it.title === TOKEN_TITLE ? 'GitHub token (used to save)' : (it.title || '(no name)');
     const b = document.createElement('td'); b.className = 'muted'; b.textContent = safeUrl(it.url) ? new URL(it.url).host : 'no address';
     const c = document.createElement('td'); c.className = 'r';
     confirmCell(c, 'i' + i, 'Delete', async () => { plain.splice(i, 1); pending = null; await rebuildItems(); dirty(); render(); });
@@ -288,6 +298,9 @@ function render() {
   });
   if (!ks.length) { const tr = document.createElement('tr'); const td = document.createElement('td'); td.className = 'muted'; td.textContent = 'No key yet: add one before you save.'; tr.appendChild(td); kl.appendChild(tr); }
   $('outBox').hidden = !ks.length;
+  const hasTok = plain.some((i) => i.title === TOKEN_TITLE);
+  $('tokenBox').hidden = !repoOk; $('tokenState').textContent = hasTok ? 'A GitHub token is kept in this box.' : 'No GitHub token in this box yet.';
+  $('addToken').textContent = hasTok ? 'Replace the token' : 'Keep this token in the box';
   if (ks.length) $('out').value = JSON.stringify({ ...vault, rev: (vault.rev || 0) + (edited ? 1 : 0) }, null, 2);
   showItems();
 }
@@ -314,6 +327,31 @@ $('verify').onclick = async () => {
   try { const d = await unlockVault(vault); const items = await listItems(vault, d);
         say('verifyMsg', 'It opens: ' + items.length + ' thing(s): ' + items.map((i) => i.title).join(', '), 'ok'); }
   catch (e) { say('verifyMsg', niceError(e, L), 'bad'); }
+};
+$('addToken').onclick = async () => {
+  const tok = $('ghToken').value.trim(); if (!tok) return say('ghMsg', 'Paste the token first.', 'bad');
+  plain = plain.filter((i) => i.title !== TOKEN_TITLE); plain.push({ title: TOKEN_TITLE, url: 'https://github.com/settings/personal-access-tokens', secret: tok });
+  await rebuildItems(); $('ghToken').value = ''; say('ghMsg', 'The token is now kept in the box.', 'ok'); dirty(); render();
+};
+const ghError = (e) => {
+  if (e.name === 'RemoteNewer') return 'GitHub already has a newer box (rev ' + e.rev + '). Open that one first, then make your changes again.';
+  if (e.name === 'BadToken') return 'GitHub refused the token. It may have expired: make a new one and replace it above.';
+  if (e.name === 'NoRepo') return 'The token cannot see that repository, or it does not exist.';
+  if (e.name === 'Conflict') return 'The file changed on GitHub meanwhile. Try again.';
+  if (e.name === 'TypeError') return 'Could not reach GitHub.';
+  return 'GitHub error: ' + (e.message || e.name);
+};
+$('saveGh').onclick = async () => {
+  const t = plain.find((i) => i.title === TOKEN_TITLE);
+  if (!t) return say('ghMsg', 'There is no GitHub token in this box yet. Add one above, or download the file and keep it yourself.', 'bad');
+  $('saveGh').disabled = true; say('ghMsg', 'Saving to GitHub…');
+  try {
+    const text = $('out').value, rev = JSON.parse(text).rev;
+    const sha = await saveToGitHub(repoVal, t.secret, text, rev);
+    vault = { ...vault, rev }; edited = false; $('dirty').hidden = true; render();
+    say('ghMsg', sha === 'unchanged' ? 'GitHub already has exactly this box.' : 'Saved to GitHub (commit ' + sha.slice(0, 7) + ').', 'ok');
+  } catch (e) { say('ghMsg', ghError(e), 'bad'); }
+  finally { $('saveGh').disabled = false; }
 };
 </script>
 </body>

@@ -6,7 +6,7 @@
 //   items: each is {iv, ct}: an AES-GCM box of {title, url, secret} under the data key. Titles are inside the box.
 // One touch of any enrolled key opens every item.
 const enc = new TextEncoder(), dec = new TextDecoder();
-const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const b64 = (buf) => { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
 const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 // A credential belongs to one website name (its rpId). Default: the host serving the page.
 // A <meta name="rp-id" content="example.org"> pins it, so www.example.org and example.org share keys.
@@ -111,10 +111,35 @@ async function enrolKey(vault, name, data) {
   const id = await createCredential(name);
   return addKeyEntry(vault, name, id, await prfFor(id), data);
 }
+
+// ---------- saving the box as a commit in a GitHub repository ----------
+// The token lives inside the box as an item with this title; it is only ever used to call api.github.com.
+const TOKEN_TITLE = 'github-token';
+// Writes box.json in `repo` (owner/name) with one commit. Refuses to replace a box that is newer (higher rev).
+// Returns the commit sha, or 'unchanged'.
+async function saveToGitHub(repo, token, text, rev, f) {
+  f = f || fetch;
+  const url = 'https://api.github.com/repos/' + repo + '/contents/box.json';
+  const h = { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+  const fail = (name, msg, extra) => Object.assign(new Error(msg), { name }, extra);
+  const g = await f(url, { headers: h, cache: 'no-store' });
+  let sha;
+  if (g.status === 200) {
+    const cur = await g.json(); sha = cur.sha;
+    let remoteText = '', remote = null;
+    try { remoteText = dec.decode(unb64(String(cur.content).replace(/\s/g, ''))); remote = JSON.parse(remoteText); } catch (e) {}
+    if (remoteText === text) return 'unchanged';
+    if (remote && (remote.rev || 0) >= rev) throw fail('RemoteNewer', 'newer', { rev: remote.rev || 0 });
+  } else if (g.status !== 404) throw fail(g.status === 401 || g.status === 403 ? 'BadToken' : 'GitHubError', 'github ' + g.status);
+  const p = await f(url, { method: 'PUT', headers: { ...h, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: 'box rev ' + rev, content: b64(enc.encode(text)), ...(sha ? { sha } : {}) }) });
+  if (!p.ok) throw fail(p.status === 401 || p.status === 403 ? 'BadToken' : p.status === 404 ? 'NoRepo' : (p.status === 409 || p.status === 422) ? 'Conflict' : 'GitHubError', 'github ' + p.status);
+  return (await p.json()).commit.sha;
+}
 function niceError(e, L) {
   const n = e && e.name;
   if (n === 'NotAllowedError' || n === 'AbortError') return L.e_cancel;
   if (n === 'NoPrf' || n === 'NotSupportedError' || n === 'SecurityError') return L.e_nokey;
   return L.e_other + ((e && (e.message || n)) || '');
 }
-if (typeof module !== 'undefined') module.exports = { wrapDataKey, unwrapDataKey, encryptItem, decryptItem, parseItem, listItems, emptyVault, addKeyEntry, addItem, upgrade, safeUrl, newDataKey, keysOf, b64, unb64, enc };
+if (typeof module !== 'undefined') module.exports = { wrapDataKey, unwrapDataKey, encryptItem, decryptItem, parseItem, listItems, emptyVault, addKeyEntry, addItem, upgrade, safeUrl, newDataKey, keysOf, b64, unb64, enc, saveToGitHub, TOKEN_TITLE };
