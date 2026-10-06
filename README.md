@@ -1,4 +1,4 @@
-# recover-box
+# fido2box
 
 Keep a few secrets behind a hardware key (FIDO2). One page, no accounts, no server logic.
 

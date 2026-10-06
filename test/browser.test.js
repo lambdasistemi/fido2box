@@ -64,7 +64,7 @@ async function main() {
     // ===== empty library, make a box =====
     await open();
     ok(await has('No boxes yet'), 'a new browser has an empty library');
-    ok((await run(`${q('#codeLink')}.href`)) === 'https://github.com/lambdasistemi/recover-box', 'the top bar links to the code');
+    ok((await run(`${q('#codeLink')}.href`)) === 'https://github.com/lambdasistemi/fido2box', 'the top bar links to the code');
     ok((await run(`${q('#commitLink')}.textContent`)) === '0123456' && (await run(`${q('#commitLink')}.href`)).endsWith('/commit/0123456789abcdef0123456789abcdef01234567'), 'the top bar shows and links the commit being served');
     await open('#/keys');
     ok(await has('No security keys known in this browser yet') && (await run(`!${q('#detectAll')}.disabled`)), 'Keys view with no boxes: Detect is not greyed out and the page explains why there is nothing to detect');

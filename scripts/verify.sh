@@ -4,7 +4,7 @@
 # Needs: curl, git, sha256sum, and gh (logged in) for the attestation check.
 set -euo pipefail
 SITE=${1:?usage: verify.sh https://site}
-REPO=${REPO:-lambdasistemi/recover-box}
+REPO=${REPO:-lambdasistemi/fido2box}
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 curl -fsS "$SITE/SHA256SUMS" -o "$tmp/SHA256SUMS"
 commit=$(curl -fsS "$SITE/COMMIT" | tr -d '[:space:]')
