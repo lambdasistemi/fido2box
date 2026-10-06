@@ -64,6 +64,9 @@ async function main() {
     ok(await has('No security keys known in this browser yet') && (await run(`!${q('#detectAll')}.disabled`)), 'Keys view with no boxes: Detect is not greyed out and the page explains why there is nothing to detect');
     await click('#detectAll'); await sleep(300);
     ok(await has('No security keys are known here yet'), 'pressing Detect with no known keys says what to do');
+    await click('#testKey'); await until(`!!${q('#probeResult')}`);
+    ok(await has('PIN verified: yes') && await has('PRF / hmac-secret): yes'), 'Test the plugged-in key works with no box at all: PIN verified, PRF supported');
+    ok((await run(`lib.list().then((l) => l.length)`)) === 0, 'testing a key stores nothing in the library');
     await open();
     await click('#newBtn'); await fill('#newName', 'bad name!'); await fill('#newKey', 'hk-home'); await click('#createBox'); await sleep(500);
     ok(await has('letters, digits'), 'a bad box name is refused');
@@ -120,12 +123,12 @@ async function main() {
     // ===== naming a key: recognised, already in the box, or new =====
     await open('#/'); await click('#newBtn'); await sleep(250);
     ok(await run(`!!${q('#newKeyFind')}`) && await has('Keys you have used'), 'New box: once the browser knows keys, it offers their names and a way to recognise the plugged-in one');
-    await click('#newKeyFind'); await until(`${q('#newKey')}.value === 'hk-home'`);
-    ok(await has('This is "hk-home"'), 'a key used before is recognised by a touch and its name is filled in');
+    await click('#newKeyFind'); await until(`/^hk-/.test(${q('#newKey')}.value)`);   // the one virtual key holds several credentials and answers with any of them
+    ok(/This is "hk-(home|bag)"/.test(await text()), 'a key used before is recognised by a touch and its name is filled in');
     await open('#/box/paolo'); await click('#unlockBtn'); await until(`!!${q('#lockBtn')}`); await click('#tab-keys'); await sleep(250);
     const nKeys = () => run(`lib.get('paolo').then((r) => r.box.keys.length)`); const before = await nKeys();
     await click('#kNameFind'); await until(`document.body.innerText.includes('already in this box')`);
-    ok(await has('"hk-home" is already in this box'), 'a key that is already in the box is recognised as such');
+    ok(/"hk-(home|bag)" is already in this box/.test(await text()), 'a key that is already in the box is recognised as such');
     await click('#addKey'); await sleep(600);
     ok((await nKeys()) === before && await has('already in this box'), 'it cannot be added twice');
     await send('WebAuthn.setAutomaticPresenceSimulation', { authenticatorId: key1.authenticatorId, enabled: false });
@@ -207,6 +210,10 @@ async function main() {
     await btn('Delete from this browser'); await sleep(150); ok(!!(await run(`lib.get('imp')`)), 'delete from this browser asks first');
     await btn('Yes, delete from this browser'); await sleep(600);
     ok(!(await run(`lib.get('imp')`)) && !!g.files, 'confirming deletes only the local copy');
+    // a key without PRF is reported as unusable for boxes
+    await send('WebAuthn.removeVirtualAuthenticator', { authenticatorId: key3.authenticatorId }); await auth({ hasPrf: false });
+    await open('#/keys'); await click('#testKey'); await until(`!!${q('#probeResult')}`);
+    ok(await has('PRF / hmac-secret): NO'), 'a key without PRF is reported as unable to hold a box key');
   } finally { try { ws.close(); } catch (e) {} proc.kill(); server.close(); try { fs.rmSync(profile, { recursive: true, force: true }); } catch (e) {} }
   ok(pageErrors.length === 0, 'no uncaught page errors' + (pageErrors.length ? ': ' + pageErrors[0] : ''));
   console.log('\n' + (n - fails) + '/' + n + ' passed'); process.exit(fails ? 1 : 0);

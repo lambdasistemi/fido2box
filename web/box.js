@@ -158,10 +158,23 @@ async function saveToGitHub(repo, token, text, rev, f, path) {
   if (!p.ok) throw fail(p.status === 401 || p.status === 403 ? 'BadToken' : p.status === 404 ? 'NoRepo' : (p.status === 409 || p.status === 422) ? 'Conflict' : 'GitHubError', 'github ' + p.status);
   return (await p.json()).commit.sha;
 }
+// Check that the plugged-in key works, with no box needed: make a throwaway credential (a non-resident one: nothing is stored on the key)
+// and report what the key can do. It cannot say WHICH of your keys it is: only a credential made earlier can do that.
+async function probeKey() {
+  let cred;
+  try {
+    cred = await navigator.credentials.create({ publicKey: { rp: { name: 'Recover box', id: RP }, timeout: 60000,
+      user: { id: crypto.getRandomValues(new Uint8Array(16)), name: 'key-test', displayName: 'key test' }, challenge: crypto.getRandomValues(new Uint8Array(32)),
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+      authenticatorSelection: { residentKey: 'discouraged', userVerification: 'required' }, extensions: { prf: {} } } });
+  } catch (e) { throw new Error('Key test failed: ' + (e.name || 'error') + (e.message ? ' (' + e.message + ')' : '')); }
+  const ext = cred.getClientExtensionResults(), ad = cred.response.getAuthenticatorData ? new Uint8Array(cred.response.getAuthenticatorData()) : null;
+  return { answered: true, prf: !!(ext.prf && ext.prf.enabled), pin: ad ? !!(ad[32] & 0x04) : null, transports: cred.response.getTransports ? cred.response.getTransports() : [] };
+}
 function niceError(e, L) {
   const n = e && e.name;
   if (n === 'NotAllowedError' || n === 'AbortError') return L.e_cancel;
   if (n === 'NoPrf' || n === 'NotSupportedError' || n === 'SecurityError') return L.e_nokey;
   return L.e_other + ((e && (e.message || n)) || '');
 }
-if (typeof module !== 'undefined') module.exports = { wrapDataKey, unwrapDataKey, encryptItem, decryptItem, parseItem, listItems, emptyVault, addKeyEntry, addItem, upgrade, safeUrl, newDataKey, keysOf, b64, unb64, enc, saveToGitHub, TOKEN_TITLE, listRemote, fetchRemote, NAME_RE };
+if (typeof module !== 'undefined') module.exports = { wrapDataKey, unwrapDataKey, encryptItem, decryptItem, parseItem, listItems, emptyVault, addKeyEntry, addItem, upgrade, safeUrl, newDataKey, keysOf, b64, unb64, enc, saveToGitHub, TOKEN_TITLE, listRemote, fetchRemote, NAME_RE, probeKey };

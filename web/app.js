@@ -11,7 +11,7 @@ const h = (tag, props, ...kids) => {
   return e;
 };
 const REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
-const S = { boxes: [], remote: null, remoteErr: '', unlocked: {}, tab: 'items', repo: '', token: '', detected: '', confirm: '', newOpen: false, busy: false };
+const S = { probe: null, boxes: [], remote: null, remoteErr: '', unlocked: {}, tab: 'items', repo: '', token: '', detected: '', confirm: '', newOpen: false, busy: false };
 const storedRepo = () => { try { return localStorage.getItem('box-repo') || ''; } catch (e) { return ''; } };
 S.repo = new URLSearchParams(location.search).get('repo') || storedRepo() || ((window.BOX_DEFAULTS || {}).repo || '');
 const L = { e_cancel: 'Cancelled or timed out. Touch the key when it answers.', e_nokey: 'This browser or key cannot do this (use Chrome or Edge with the key plugged in).', e_uv: 'The key did not verify you (PIN). Try again.', e_other: 'Something went wrong: ' };
@@ -136,12 +136,12 @@ function boxView(name) {
   const head = h('div', null, h('p', { class: 'small' }, h('a', { href: '#/' }, '← Boxes')),
     h('div', { class: 'row sp' }, h('h1', null, name), h('div', { class: 'row' }, U ? chip('unlocked', 'live') : chip('locked'), U ? h('button', { id: 'lockBtn', on: { click: () => { delete S.unlocked[name]; render(); } } }, 'Lock') : null)));
   if (!rec && !rem) return h('div', null, head, h('div', { class: 'card empty' }, 'No such box.'));
-  const tabs = h('div', { class: 'tabs' }, ['items', 'keys', 'sync'].map((t) => h('button', { class: S.tab === t ? 'on' : '', id: 'tab-' + t, on: { click: () => { S.tab = t; S.confirm = ''; render(); } } }, { items: 'Items', keys: 'Keys', sync: 'Sync' }[t])));
+  const tabs = h('div', { class: 'tabs' }, ['items', 'keys', 'sync'].map((t) => h('button', { class: S.tab === t ? 'on' : '', id: 'tab-' + t, on: { click: () => { S.tab = t; S.confirm = ''; render(); } } }, { items: 'Items', keys: 'Security keys', sync: 'Sync' }[t])));
   return h('div', null, head, tabs, S.tab === 'keys' ? keysTab(name, rec, U) : S.tab === 'sync' ? syncTab(name, rec, rem) : itemsTab(name, rec, rem, U));
 }
 function itemsTab(name, rec, rem, U) {
   if (!rec) return h('div', { class: 'card' }, h('p', null, 'This box is only on GitHub. Pull it into this browser to use it.'), h('button', { class: 'primary', on: { click: () => { S.tab = 'sync'; render(); } } }, 'Go to Sync'));
-  if (!U) return h('div', { class: 'card empty' }, h('p', null, 'This box is locked.'), h('p', { class: 'small' }, 'Plug in one of its security keys (see the Keys tab) and press Unlock. The key asks for its PIN and a touch.'),
+  if (!U) return h('div', { class: 'card empty' }, h('p', null, 'This box is locked.'), h('p', { class: 'small' }, 'Plug in one of its security keys (see the Security keys tab) and press Unlock. The key asks for its PIN and a touch.'),
     h('button', { class: 'primary', id: 'unlockBtn', on: { click: act(async () => { await unlock(name); }) } }, 'Unlock'));
   const usable = U.plain.map((it, i) => [it, i]).filter(([it]) => it.title !== TOKEN_TITLE);
   const t = { name: h('input', { id: 'iName', placeholder: 'e.g. 1Password' }), url: h('input', { id: 'iUrl', placeholder: 'https://my.1password.com/signin' }), secret: h('input', { id: 'iSecret', type: 'password', autocomplete: 'off' }) };
@@ -218,8 +218,12 @@ function keysView() {
   for (const r of S.boxes) for (const k of keysOf(r.box)) { const e = map.get(k.id) || { id: k.id, names: new Set(), boxes: [] }; e.names.add(k.name); e.boxes.push(r.name); map.set(k.id, e); }
   const all = [...map.values()];
   return h('div', null, h('div', { class: 'row sp' }, h('h1', null, 'Security keys'),
-      h('button', { class: 'primary', id: 'detectAll', on: { click: act(async () => { if (!all.length) throw new Error('No security keys are known here yet. They belong to boxes: make a box, or import one, then Detect can recognise its keys.'); const id = await detectKey(all.map((e) => e.id)); S.detected = id; const e = map.get(id); say(e ? '"' + [...e.names].join(', ') + '" is inserted.' : 'A key answered that is not in any box here.'); }) } }, 'Detect the inserted key (touch)')),
+      h('div', { class: 'row' }, h('button', { id: 'testKey', on: { click: act(async () => { S.probe = await withKey(probeKey); }) } }, 'Test the plugged-in key'), h('button', { class: 'primary', id: 'detectAll', on: { click: act(async () => { if (!all.length) throw new Error('No security keys are known here yet. They belong to boxes: make a box, or import one, then Detect can recognise its keys.'); const id = await detectKey(all.map((e) => e.id)); S.detected = id; const e = map.get(id); say(e ? '"' + [...e.names].join(', ') + '" is inserted.' : 'A key answered that is not in any box here.'); }) } }, 'Detect the inserted key (touch)'))),
     h('p', { class: 'muted small' }, 'A web page cannot see which key is plugged in until you touch it. Detection asks the key to sign and matches its answer to the keys listed in your boxes.'),
+    S.probe ? h('div', { class: 'card', id: 'probeResult' }, h('h2', null, 'The key answered'),
+      h('p', null, S.probe.pin === false ? 'It did not verify your PIN: it may have no PIN set.' : S.probe.pin ? 'PIN verified: yes.' : 'PIN verification: not reported by this browser.'),
+      h('p', null, S.probe.prf ? 'Can hold a box key (PRF / hmac-secret): yes.' : 'Can hold a box key (PRF / hmac-secret): NO. This key cannot be used for boxes.'),
+      h('p', { class: 'muted small' }, 'It cannot be told apart from your other keys until it is enrolled in a box.')) : null,
     all.length ? h('div', { class: 'card' }, h('table', null, h('tr', null, h('th', null, 'Security key'), h('th', null, 'Credential'), h('th', null, 'Opens')),
       all.map((e) => h('tr', null, h('td', null, h('strong', null, [...e.names].join(', ')), ' ', S.detected === e.id ? chip('inserted now', 'live') : null), h('td', { class: 'muted small' }, shortId(e.id)),
         h('td', null, e.boxes.map((b) => h('a', { class: 'chip', href: '#/box/' + encodeURIComponent(b) }, b)))))))
