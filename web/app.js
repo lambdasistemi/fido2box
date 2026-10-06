@@ -80,13 +80,13 @@ function boxesView() {
     const name = f.name.replace(/\.json$/i, '').replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 40) || 'box';
     if (local(name)) throw new Error('A box named "' + name + '" is already in this browser. Delete it first, or rename the file.');
     await lib.put(name, box); await reload(); say('Imported "' + name + '".'); ev.target.value = ''; }) } });
-  const nameIn = h('input', { id: 'newName', placeholder: 'box name, e.g. paolo', maxlength: 40 }), keyIn = h('input', { id: 'newKey', placeholder: 'name of the key that is plugged in, e.g. hk-home' });
+  const nameIn = h('input', { id: 'newName', placeholder: 'box name, e.g. paolo', maxlength: 40 }), keyIn = h('input', { id: 'newKey', placeholder: 'a name for the key you plug in, e.g. hk-home' });
   const form = S.newOpen ? h('div', { class: 'card' }, h('h2', null, 'New box'),
-    h('label', null, 'Name (letters, digits, - and _)'), nameIn, h('label', null, 'First key'), keyIn,
-    h('p', { class: 'muted small' }, 'Plug in only that key. It asks for its PIN and a touch, twice.'),
+    h('label', null, 'Name (letters, digits, - and _)'), nameIn, h('label', null, 'Security key'), keyIn,
+    h('p', { class: 'muted small' }, 'Plug in the hardware security key you will open this box with, and only that one. It asks for its PIN and a touch, twice.'),
     h('div', { class: 'row' }, h('button', { class: 'primary', id: 'createBox', on: { click: act(async () => {
       const name = nameIn.value.trim(), kn = keyIn.value.trim();
-      if (!NAME_RE.test(name)) throw new Error('The name may use letters, digits, - and _ (up to 40).'); if (local(name)) throw new Error('A box with that name already exists here.'); if (!kn) throw new Error('Give the key a name.');
+      if (!NAME_RE.test(name)) throw new Error('The name may use letters, digits, - and _ (up to 40).'); if (local(name)) throw new Error('A box with that name already exists here.'); if (!kn) throw new Error('Give the security key a name, for example hk-home.');
       const data = newDataKey(); const box = { ...(await withKey(() => enrolKey(emptyVault(), kn, data))), rev: 1 };
       await lib.put(name, box); await reload(); S.unlocked[name] = { data, plain: [] }; S.newOpen = false; location.hash = '#/box/' + name; say('Created "' + name + '".'); }) } }, 'Create'),
       h('button', { on: { click: () => { S.newOpen = false; render(); } } }, 'Cancel'))) : null;
@@ -100,9 +100,10 @@ function boxesView() {
       h('button', { class: 'primary', id: 'newBtn', on: { click: () => { S.newOpen = true; render(); } } }, 'New box'),
       h('button', { id: 'importBtn', on: { click: () => document.getElementById('importFile').click() } }, 'Import file'),
       h('button', { id: 'refreshBtn', on: { click: act(async () => { await refreshRemote(); if (S.remote) say('GitHub: ' + Object.keys(S.remote).length + ' box(es).'); else say(S.remoteErr, true); }) } }, 'Refresh GitHub'))),
+    h('p', { class: 'muted small', id: 'intro' }, 'A box is one locked file that holds your items. Your security keys, the hardware keys you plug in, open it: any one of them is enough.'),
     file, form,
     h('p', { class: 'muted small', id: 'ghLine' }, S.remote ? 'GitHub: ' + S.repo + ', ' + Object.keys(S.remote).length + ' box(es).' : (S.remoteErr || 'GitHub: not checked.')),
-    names.length ? h('div', { class: 'card' }, h('table', null, h('tr', null, h('th', null, 'Name'), h('th', null, 'Where'), h('th', null, 'Keys'), h('th', null, 'Version'), h('th', null, 'Status')), rows))
+    names.length ? h('div', { class: 'card' }, h('table', null, h('tr', null, h('th', null, 'Name'), h('th', null, 'Where'), h('th', null, 'Security keys'), h('th', null, 'Version'), h('th', null, 'Status')), rows))
       : h('div', { class: 'card empty', id: 'emptyBoxes' }, h('p', null, 'No boxes yet.'), h('p', { class: 'small' }, 'Make a new one, or import a box file. If you are recovering, download your box file from ', REPO_RE.test(S.repo) ? h('a', { href: 'https://github.com/' + S.repo + '/tree/main/boxes', target: '_blank', rel: 'noopener noreferrer' }, S.repo) : 'your repository on GitHub', ' (log in with your key) and import it here.')));
 }
 
@@ -112,12 +113,12 @@ function boxView(name) {
   const head = h('div', null, h('p', { class: 'small' }, h('a', { href: '#/' }, '← Boxes')),
     h('div', { class: 'row sp' }, h('h1', null, name), h('div', { class: 'row' }, U ? chip('unlocked', 'live') : chip('locked'), U ? h('button', { id: 'lockBtn', on: { click: () => { delete S.unlocked[name]; render(); } } }, 'Lock') : null)));
   if (!rec && !rem) return h('div', null, head, h('div', { class: 'card empty' }, 'No such box.'));
-  const tabs = h('div', { class: 'tabs' }, ['items', 'keys', 'sync'].map((t) => h('button', { class: S.tab === t ? 'on' : '', id: 'tab-' + t, on: { click: () => { S.tab = t; S.confirm = ''; render(); } } }, { items: 'Items', keys: 'Keys', sync: 'Sync' }[t])));
+  const tabs = h('div', { class: 'tabs' }, ['items', 'keys', 'sync'].map((t) => h('button', { class: S.tab === t ? 'on' : '', id: 'tab-' + t, on: { click: () => { S.tab = t; S.confirm = ''; render(); } } }, { items: 'Items', keys: 'Security keys', sync: 'Sync' }[t])));
   return h('div', null, head, tabs, S.tab === 'keys' ? keysTab(name, rec, U) : S.tab === 'sync' ? syncTab(name, rec, rem) : itemsTab(name, rec, rem, U));
 }
 function itemsTab(name, rec, rem, U) {
   if (!rec) return h('div', { class: 'card' }, h('p', null, 'This box is only on GitHub. Pull it into this browser to use it.'), h('button', { class: 'primary', on: { click: () => { S.tab = 'sync'; render(); } } }, 'Go to Sync'));
-  if (!U) return h('div', { class: 'card empty' }, h('p', null, 'This box is locked.'), h('p', { class: 'small' }, 'Plug in one of its keys (see Keys) and press Unlock. The key asks for its PIN and a touch.'),
+  if (!U) return h('div', { class: 'card empty' }, h('p', null, 'This box is locked.'), h('p', { class: 'small' }, 'Plug in one of its security keys (see the Security keys tab) and press Unlock. The key asks for its PIN and a touch.'),
     h('button', { class: 'primary', id: 'unlockBtn', on: { click: act(async () => { await unlock(name); }) } }, 'Unlock'));
   const usable = U.plain.map((it, i) => [it, i]).filter(([it]) => it.title !== TOKEN_TITLE);
   const t = { name: h('input', { id: 'iName', placeholder: 'e.g. 1Password' }), url: h('input', { id: 'iUrl', placeholder: 'https://my.1password.com/signin' }), secret: h('input', { id: 'iSecret', type: 'password', autocomplete: 'off' }) };
@@ -136,17 +137,17 @@ function itemsTab(name, rec, rem, U) {
 }
 function keysTab(name, rec, U) {
   if (!rec) return h('div', { class: 'card' }, 'Pull this box first.');
-  const ks = keysOf(rec.box), kn = h('input', { id: 'kName', placeholder: 'name of the key that is plugged in' });
+  const ks = keysOf(rec.box), kn = h('input', { id: 'kName', placeholder: 'a name for the key you plug in, e.g. hk-bag' });
   return h('div', null,
     h('div', { class: 'card' }, h('table', null, ks.map((k, i) => h('tr', null,
       h('td', null, h('strong', null, k.name), ' ', S.detected === k.id ? chip('inserted now', 'live') : null), h('td', { class: 'muted small' }, shortId(k.id)),
-      h('td', { class: 'r' }, ks.length > 1 ? confirmBtn('k' + i, 'Remove', async () => { await commit(name, ks.filter((_, j) => j !== i)); }) : h('span', { class: 'muted small' }, 'the only key'))))),
+      h('td', { class: 'r' }, ks.length > 1 ? confirmBtn('k' + i, 'Remove', async () => { await commit(name, ks.filter((_, j) => j !== i)); }) : h('span', { class: 'muted small' }, 'the only security key'))))),
       h('p', { class: 'muted small' }, 'Removing a key does not revoke it: anyone who ever had it can still open older copies of this box. To revoke, make a new box.'),
       h('button', { id: 'detectBtn', on: { click: act(async () => { const id = await detectKey(ks.map((k) => k.id)); S.detected = id; const k = ks.find((x) => x.id === id); say(k ? '"' + k.name + '" is inserted.' : 'A key answered that is not in this box.'); }) } }, 'Detect the inserted key (touch)')),
-    h('div', { class: 'card' }, h('h2', null, 'Add a key'), U ? [h('label', null, 'Name'), kn, h('p', { class: 'muted small' }, 'Plug in only that key. It asks for its PIN and a touch, twice.'),
-      h('button', { class: 'primary', id: 'addKey', on: { click: act(async () => { const v = kn.value.trim(); if (!v) throw new Error('Give the key a name.');
-        const added = await withKey(() => enrolKey({ ...rec.box, keys: keysOf(rec.box) }, v, U.data)); await commit(name, added.keys); say('Added "' + v + '".'); }) } }, 'Add the key')]
-      : h('p', { class: 'muted' }, 'Unlock the box first (Items tab): adding a key needs the box open.')));
+    h('div', { class: 'card' }, h('h2', null, 'Add a security key'), U ? [h('label', null, 'Name'), kn, h('p', { class: 'muted small' }, 'Plug in the hardware key you want to add, and only that one. It asks for its PIN and a touch, twice.'),
+      h('button', { class: 'primary', id: 'addKey', on: { click: act(async () => { const v = kn.value.trim(); if (!v) throw new Error('Give the security key a name, for example hk-home.');
+        const added = await withKey(() => enrolKey({ ...rec.box, keys: keysOf(rec.box) }, v, U.data)); await commit(name, added.keys); say('Added "' + v + '".'); }) } }, 'Add this security key')]
+      : h('p', { class: 'muted' }, 'Unlock the box first (Items tab): adding a security key needs the box open.')));
 }
 // The three steps that make "Push to GitHub" work: a repository, a token kept inside the box, a connection test.
 function connectCard(name) {
@@ -154,7 +155,7 @@ function connectCard(name) {
   const step = (n, done, title, ...body) => h('div', { class: 'step' }, h('span', { class: 'num' + (done ? ' done' : '') }, done ? '✓' : String(n)), h('div', { class: 'grow' }, h('strong', null, title), ...body));
   const repoIn = h('input', { id: 'repoIn2', value: S.repo, placeholder: 'owner/name, e.g. paolino/fido-box' }), tokIn = h('input', { id: 'iToken', type: 'password', autocomplete: 'off', placeholder: 'github_pat_…' });
   const tokenHelp = [h('ol', { class: 'muted small' },
-      h('li', null, 'Open GitHub\'s token page (the button below) and sign in.'), h('li', null, 'Name it, for example fido-box, and pick the longest expiry.'),
+      h('li', null, 'Open GitHub\'s token page (the button below) and sign in. A token is a password for this app to write to GitHub; it is not a security key.'), h('li', null, 'Name it, for example fido-box, and pick the longest expiry.'),
       h('li', null, 'Repository access: "Only select repositories", then ', h('code', null, repoOk ? S.repo : 'your box repository'), '.'),
       h('li', null, 'Permissions → Repository permissions → Contents → Read and write. Nothing else.'), h('li', null, 'Generate the token, copy it, and paste it here.')),
     h('p', { class: 'row' }, h('a', { class: 'btn', id: 'openGh', href: 'https://github.com/settings/personal-access-tokens/new', target: '_blank', rel: 'noopener noreferrer' }, 'Open GitHub to create the token')), tokIn,
@@ -193,17 +194,17 @@ function keysView() {
   const map = new Map();
   for (const r of S.boxes) for (const k of keysOf(r.box)) { const e = map.get(k.id) || { id: k.id, names: new Set(), boxes: [] }; e.names.add(k.name); e.boxes.push(r.name); map.set(k.id, e); }
   const all = [...map.values()];
-  return h('div', null, h('div', { class: 'row sp' }, h('h1', null, 'Keys'),
-      h('div', { class: 'row' }, h('button', { id: 'testKey', on: { click: act(async () => { S.probe = await withKey(probeKey); }) } }, 'Test the plugged-in key'), h('button', { class: 'primary', id: 'detectAll', on: { click: act(async () => { if (!all.length) throw new Error('No keys are known here yet. Keys belong to boxes: make a box, or import one, then Detect can recognise its keys.'); const id = await detectKey(all.map((e) => e.id)); S.detected = id; const e = map.get(id); say(e ? '"' + [...e.names].join(', ') + '" is inserted.' : 'A key answered that is not in any box here.'); }) } }, 'Detect the inserted key (touch)'))),
+  return h('div', null, h('div', { class: 'row sp' }, h('h1', null, 'Security keys'),
+      h('div', { class: 'row' }, h('button', { id: 'testKey', on: { click: act(async () => { S.probe = await withKey(probeKey); }) } }, 'Test the plugged-in key'), h('button', { class: 'primary', id: 'detectAll', on: { click: act(async () => { if (!all.length) throw new Error('No security keys are known here yet. They belong to boxes: make a box, or import one, then Detect can recognise its keys.'); const id = await detectKey(all.map((e) => e.id)); S.detected = id; const e = map.get(id); say(e ? '"' + [...e.names].join(', ') + '" is inserted.' : 'A key answered that is not in any box here.'); }) } }, 'Detect the inserted key (touch)'))),
     h('p', { class: 'muted small' }, 'A web page cannot see which key is plugged in until you touch it. Detection asks the key to sign and matches its answer to the keys listed in your boxes.'),
     S.probe ? h('div', { class: 'card', id: 'probeResult' }, h('h2', null, 'The key answered'),
       h('p', null, S.probe.pin === false ? 'It did not verify your PIN: it may have no PIN set.' : S.probe.pin ? 'PIN verified: yes.' : 'PIN verification: not reported by this browser.'),
       h('p', null, S.probe.prf ? 'Can hold a box key (PRF / hmac-secret): yes.' : 'Can hold a box key (PRF / hmac-secret): NO. This key cannot be used for boxes.'),
       h('p', { class: 'muted small' }, 'It cannot be told apart from your other keys until it is enrolled in a box.')) : null,
-    all.length ? h('div', { class: 'card' }, h('table', null, h('tr', null, h('th', null, 'Key'), h('th', null, 'Credential'), h('th', null, 'Opens')),
+    all.length ? h('div', { class: 'card' }, h('table', null, h('tr', null, h('th', null, 'Security key'), h('th', null, 'Credential'), h('th', null, 'Opens')),
       all.map((e) => h('tr', null, h('td', null, h('strong', null, [...e.names].join(', ')), ' ', S.detected === e.id ? chip('inserted now', 'live') : null), h('td', { class: 'muted small' }, shortId(e.id)),
         h('td', null, e.boxes.map((b) => h('a', { class: 'chip', href: '#/box/' + encodeURIComponent(b) }, b)))))))
-      : h('div', { class: 'card empty', id: 'noKeys' }, h('p', null, 'No keys known in this browser yet.'), h('p', { class: 'small' }, 'Keys belong to boxes. Make a box (Boxes → New box), or import or pull one, and its keys appear here. A key can only be recognised once some box lists it.')));
+      : h('div', { class: 'card empty', id: 'noKeys' }, h('p', null, 'No security keys known in this browser yet.'), h('p', { class: 'small' }, 'Security keys belong to boxes. Make a box (Boxes → New box), or import or pull one, and its keys appear here. A key can only be recognised once some box lists it.')));
 }
 
 // ---------- Settings ----------
