@@ -25,8 +25,18 @@ const ghError = (e) => ({
   Conflict: () => 'The file changed on GitHub meanwhile. Refresh and try again.',
   TypeError: () => 'Could not reach GitHub.' }[e.name] || (() => 'GitHub error: ' + (e.message || e.name)))();
 const errText = (e) => (['RemoteNewer', 'BadToken', 'NoRepo', 'Conflict', 'GitHubError', 'TypeError'].includes(e.name) ? ghError(e) : (e.name === 'NoUV' ? L.e_uv : niceError(e, L)));
-// run a handler once at a time; on an error show it and keep the form as it is (no re-render, so nothing typed is lost)
-const act = (f) => async (ev) => { if (S.busy) return; S.busy = true; let failed = false; try { await f(ev); } catch (e) { failed = true; say(errText(e), true); } finally { S.busy = false; if (!failed) render(); } };
+// A handler runs once at a time (its own flag): a key waiting for a touch must not freeze the other buttons.
+// On an error show it and keep the form as it is (no re-render, so nothing typed is lost).
+const act = (f) => { let running = false; return async (ev) => {
+  if (running) { say('Still waiting: touch the key, or wait for it to time out (one minute).', true); return; }
+  running = true; let failed = false;
+  try { await f(ev); } catch (e) { failed = true; say(errText(e), true); } finally { running = false; if (!failed) render(); } }; };
+let keyBusy = false;
+async function withKey(f) {
+  if (keyBusy) throw new Error('Still waiting for the key: touch it, or wait for it to time out (one minute).');
+  keyBusy = true; say('Waiting for your key: enter its PIN if asked, then touch it.');
+  try { return await f(); } finally { keyBusy = false; }
+}
 
 // ---------- data ----------
 async function reload() { S.boxes = await lib.list(); }
@@ -49,7 +59,7 @@ async function refreshRemote() {
   try { const names = await listRemote(S.repo, tok); const boxes = {}; await Promise.all(names.map(async (n) => { boxes[n] = await fetchRemote(S.repo, tok, n); })); S.remote = boxes; }
   catch (e) { S.remoteErr = ghError(e); }
 }
-async function unlock(name) { const rec = local(name); const data = await unlockVault(rec.box); S.unlocked[name] = { data, plain: await listItems(rec.box, data) }; if (!S.remote && currentToken()) await refreshRemote(); }
+async function unlock(name) { const rec = local(name); const data = await withKey(() => unlockVault(rec.box)); S.unlocked[name] = { data, plain: await listItems(rec.box, data) }; if (!S.remote && currentToken()) await refreshRemote(); }
 async function commit(name, keys) {                                // save a change to the library: rev goes up by one
   const rec = local(name), U = S.unlocked[name];
   const box = { v: 2, rev: (rec.box.rev || 0) + 1, rpId: rec.box.rpId || RP, keys: keys || keysOf(rec.box), items: U ? await Promise.all(U.plain.map((it) => encryptItem(U.data, it))) : (rec.box.items || []) };
@@ -77,7 +87,7 @@ function boxesView() {
     h('div', { class: 'row' }, h('button', { class: 'primary', id: 'createBox', on: { click: act(async () => {
       const name = nameIn.value.trim(), kn = keyIn.value.trim();
       if (!NAME_RE.test(name)) throw new Error('The name may use letters, digits, - and _ (up to 40).'); if (local(name)) throw new Error('A box with that name already exists here.'); if (!kn) throw new Error('Give the key a name.');
-      const data = newDataKey(); const box = { ...(await enrolKey(emptyVault(), kn, data)), rev: 1 };
+      const data = newDataKey(); const box = { ...(await withKey(() => enrolKey(emptyVault(), kn, data))), rev: 1 };
       await lib.put(name, box); await reload(); S.unlocked[name] = { data, plain: [] }; S.newOpen = false; location.hash = '#/box/' + name; say('Created "' + name + '".'); }) } }, 'Create'),
       h('button', { on: { click: () => { S.newOpen = false; render(); } } }, 'Cancel'))) : null;
   const rows = names.map((n) => { const l = local(n), r = S.remote && S.remote[n], st = sync(l && l.box, r), b = (l && l.box) || r;
@@ -110,9 +120,7 @@ function itemsTab(name, rec, rem, U) {
   if (!U) return h('div', { class: 'card empty' }, h('p', null, 'This box is locked.'), h('p', { class: 'small' }, 'Plug in one of its keys (see Keys) and press Unlock. The key asks for its PIN and a touch.'),
     h('button', { class: 'primary', id: 'unlockBtn', on: { click: act(async () => { await unlock(name); }) } }, 'Unlock'));
   const usable = U.plain.map((it, i) => [it, i]).filter(([it]) => it.title !== TOKEN_TITLE);
-  const tokenIdx = U.plain.findIndex((i) => i.title === TOKEN_TITLE);
   const t = { name: h('input', { id: 'iName', placeholder: 'e.g. 1Password' }), url: h('input', { id: 'iUrl', placeholder: 'https://my.1password.com/signin' }), secret: h('input', { id: 'iSecret', type: 'password', autocomplete: 'off' }) };
-  const tok = h('input', { id: 'iToken', type: 'password', autocomplete: 'off', placeholder: 'github_pat_…' });
   return h('div', null,
     h('div', { class: 'card' }, usable.length ? h('table', null, usable.map(([it, i]) => h('tr', null,
       h('td', null, h('strong', null, it.title || '(no name)')), h('td', { class: 'muted' }, hostOf(it.url)),
@@ -124,11 +132,7 @@ function itemsTab(name, rec, rem, U) {
       h('p', null, h('button', { class: 'primary', id: 'addItem', on: { click: act(async () => {
         const title = t.name.value.trim(), url = t.url.value.trim(), secret = t.secret.value;
         if (!title) throw new Error('Give it a name.'); if (!safeUrl(url)) throw new Error('The web address must start with https://'); if (!secret) throw new Error('The secret is empty.');
-        U.plain.push({ title, url, secret }); await commit(name); say('Added "' + title + '".'); }) } }, 'Add'))),
-    h('div', { class: 'card' }, h('h2', null, 'GitHub token for saving'), h('p', { class: 'muted small' }, tokenIdx >= 0 ? 'A token is kept in this box.' : 'No token in this box yet. It must be limited to the box repository (Contents: read and write).'),
-      tok, h('p', null, h('button', { id: 'addToken', on: { click: act(async () => { const v = tok.value.trim(); if (!v) throw new Error('Paste the token first.');
-        U.plain = U.plain.filter((i) => i.title !== TOKEN_TITLE); U.plain.push({ title: TOKEN_TITLE, url: 'https://github.com/settings/personal-access-tokens', secret: v }); S.unlocked[name] = U; await commit(name); say('The token is kept in the box.'); }) } }, tokenIdx >= 0 ? 'Replace the token' : 'Keep the token in the box'),
-        tokenIdx >= 0 ? [' ', confirmBtn('tok', 'Remove it', async () => { U.plain.splice(tokenIdx, 1); await commit(name); })] : null)));
+        U.plain.push({ title, url, secret }); await commit(name); say('Added "' + title + '".'); }) } }, 'Add'))));
 }
 function keysTab(name, rec, U) {
   if (!rec) return h('div', { class: 'card' }, 'Pull this box first.');
@@ -141,26 +145,49 @@ function keysTab(name, rec, U) {
       h('button', { id: 'detectBtn', on: { click: act(async () => { const id = await detectKey(ks.map((k) => k.id)); S.detected = id; const k = ks.find((x) => x.id === id); say(k ? '"' + k.name + '" is inserted.' : 'A key answered that is not in this box.'); }) } }, 'Detect the inserted key (touch)')),
     h('div', { class: 'card' }, h('h2', null, 'Add a key'), U ? [h('label', null, 'Name'), kn, h('p', { class: 'muted small' }, 'Plug in only that key. It asks for its PIN and a touch, twice.'),
       h('button', { class: 'primary', id: 'addKey', on: { click: act(async () => { const v = kn.value.trim(); if (!v) throw new Error('Give the key a name.');
-        const withKey = await enrolKey({ ...rec.box, keys: keysOf(rec.box) }, v, U.data); await commit(name, withKey.keys); say('Added "' + v + '".'); }) } }, 'Add the key')]
+        const added = await withKey(() => enrolKey({ ...rec.box, keys: keysOf(rec.box) }, v, U.data)); await commit(name, added.keys); say('Added "' + v + '".'); }) } }, 'Add the key')]
       : h('p', { class: 'muted' }, 'Unlock the box first (Items tab): adding a key needs the box open.')));
+}
+// The three steps that make "Push to GitHub" work: a repository, a token kept inside the box, a connection test.
+function connectCard(name) {
+  const U = S.unlocked[name], hasTok = !!U && U.plain.some((i) => i.title === TOKEN_TITLE), repoOk = REPO_RE.test(S.repo), conn = !!S.remote;
+  const step = (n, done, title, ...body) => h('div', { class: 'step' }, h('span', { class: 'num' + (done ? ' done' : '') }, done ? '✓' : String(n)), h('div', { class: 'grow' }, h('strong', null, title), ...body));
+  const repoIn = h('input', { id: 'repoIn2', value: S.repo, placeholder: 'owner/name, e.g. paolino/fido-box' }), tokIn = h('input', { id: 'iToken', type: 'password', autocomplete: 'off', placeholder: 'github_pat_…' });
+  const tokenHelp = [h('ol', { class: 'muted small' },
+      h('li', null, 'Open GitHub\'s token page (the button below) and sign in.'), h('li', null, 'Name it, for example fido-box, and pick the longest expiry.'),
+      h('li', null, 'Repository access: "Only select repositories", then ', h('code', null, repoOk ? S.repo : 'your box repository'), '.'),
+      h('li', null, 'Permissions → Repository permissions → Contents → Read and write. Nothing else.'), h('li', null, 'Generate the token, copy it, and paste it here.')),
+    h('p', { class: 'row' }, h('a', { class: 'btn', id: 'openGh', href: 'https://github.com/settings/personal-access-tokens/new', target: '_blank', rel: 'noopener noreferrer' }, 'Open GitHub to create the token')), tokIn,
+    h('p', null, h('button', { class: 'primary', id: 'addToken', on: { click: act(async () => { const v = tokIn.value.trim(); if (!v) throw new Error('Paste the token first.');
+      U.plain = U.plain.filter((i) => i.title !== TOKEN_TITLE); U.plain.push({ title: TOKEN_TITLE, url: 'https://github.com/settings/personal-access-tokens', secret: v }); await commit(name); say('The token is kept in the box.'); }) } }, 'Keep it in this box'))];
+  return h('div', { class: 'card', id: 'connect' }, h('h2', null, 'Connect to GitHub'),
+    step(1, repoOk, 'The repository that holds your boxes',
+      repoOk ? h('p', { class: 'muted small' }, S.repo, ' · ', h('a', { href: '#/settings' }, 'change'))
+        : [h('p', { class: 'muted small' }, 'The GitHub repository, as owner/name.'), repoIn, h('p', null, h('button', { id: 'saveRepo2', on: { click: act(async () => { const v = repoIn.value.trim(); if (!REPO_RE.test(v)) throw new Error('Use owner/name.'); S.repo = v; try { localStorage.setItem('box-repo', v); } catch (e) {} S.remote = null; say('Repository set.'); }) } }, 'Save'))]),
+    step(2, hasTok, 'A GitHub token, kept inside this box',
+      hasTok ? [h('p', { class: 'muted small' }, 'A token is kept in this box. It is used only to talk to GitHub, and it is never shown.'), confirmBtn('tok', 'Remove the token', async () => { U.plain = U.plain.filter((i) => i.title !== TOKEN_TITLE); await commit(name); })]
+        : U ? tokenHelp : [h('p', { class: 'muted small' }, 'The token is stored inside the box, so unlock the box first.'), h('button', { id: 'goItems', on: { click: () => { S.tab = 'items'; render(); } } }, 'Go to Items to unlock')]),
+    step(3, conn, 'Check the connection', h('p', { class: 'muted small', id: 'connState' }, conn ? 'Connected: ' + Object.keys(S.remote).length + ' box(es) on GitHub.' : (S.remoteErr || 'Not checked yet.')),
+      h('button', { id: 'testGh', disabled: !repoOk || !currentToken(), on: { click: act(async () => { await refreshRemote(); say(S.remote ? 'Connected: ' + Object.keys(S.remote).length + ' box(es) on GitHub.' : S.remoteErr, !S.remote); }) } }, 'Test the connection')));
 }
 function syncTab(name, rec, rem) {
   const st = sync(rec && rec.box, rem), tok = currentToken(), canGh = REPO_RE.test(S.repo) && !!tok;
   const path = 'boxes/' + name + '.json';
-  return h('div', { class: 'card' },
+  return h('div', null, connectCard(name), h('div', { class: 'card' },
     h('table', null, h('tr', null, h('td', null, 'This browser'), h('td', null, rec ? 'rev ' + (rec.box.rev || 0) : '—')), h('tr', null, h('td', null, 'GitHub ' + (REPO_RE.test(S.repo) ? S.repo : '')), h('td', null, rem ? 'rev ' + (rem.rev || 0) : (S.remote ? 'not there' : 'not checked'))), h('tr', null, h('td', null, 'Status'), h('td', null, chip(st.t, st.c) || '—'))),
     h('div', { class: 'row' },
       h('button', { class: 'primary', id: 'pushBtn', disabled: !rec || !canGh, on: { click: act(async () => { let sha; try { sha = await saveToGitHub(S.repo, tok, JSON.stringify(rec.box, null, 2), rec.box.rev || 0, undefined, path); } catch (e) { if (e.name === 'RemoteNewer') { await refreshRemote(); render(); } throw e; } await refreshRemote(); say(sha === 'unchanged' ? 'GitHub already has exactly this box.' : 'Saved to GitHub (commit ' + sha.slice(0, 7) + ').'); }) } }, 'Push to GitHub'),
       h('button', { id: 'pullBtn', disabled: !rem || !tok, on: { click: act(async () => { const fresh = await fetchRemote(S.repo, tok, name); if (!fresh) throw new Error('That box is no longer on GitHub.'); const l = rec && rec.box; if (l && (l.rev || 0) > (fresh.rev || 0) && S.confirm !== 'pull') { S.confirm = 'pull'; say('Your copy here is newer than GitHub. Press Pull again to replace it.', true); return; } S.confirm = ''; await lib.put(name, fresh); await reload(); if (S.remote) S.remote[name] = fresh; say('Pulled rev ' + (fresh.rev || 0) + '.'); }) } }, 'Pull from GitHub'),
       h('button', { id: 'dlBtn', disabled: !rec, on: { click: () => download(JSON.stringify(rec.box, null, 2), name + '.json') } }, 'Download the file'),
       rec ? confirmBtn('del', 'Delete from this browser', async () => { delete S.unlocked[name]; await lib.del(name); await reload(); location.hash = '#/'; say('Deleted "' + name + '" from this browser. GitHub is untouched.'); }, 'danger') : null),
-    canGh ? null : h('p', { class: 'muted small' }, 'To use GitHub, unlock a box that holds a token, or paste one in Settings.'));
+    ));
 }
 
 // ---------- Keys ----------
 async function detectKey(ids) {                      // a touch (no PIN): the key that answers tells us which one is inserted
-  const a = await navigator.credentials.get({ publicKey: { challenge: crypto.getRandomValues(new Uint8Array(32)), rpId: RP, userVerification: 'discouraged', allowCredentials: ids.map((id) => ({ type: 'public-key', id: unb64(id) })) } });
-  return b64(a.rawId);
+  return withKey(async () => {
+  let a; try { a = await navigator.credentials.get({ publicKey: { challenge: crypto.getRandomValues(new Uint8Array(32)), rpId: RP, userVerification: 'discouraged', timeout: 60000, allowCredentials: ids.map((id) => ({ type: 'public-key', id: unb64(id) })) } }); } catch (e) { throw new Error('Detect failed: ' + (e.name || 'error') + (e.message ? ' (' + e.message + ')' : '')); }
+  return b64(a.rawId); });
 }
 function keysView() {
   const map = new Map();
@@ -197,3 +224,5 @@ function render() {
 document.getElementById('where').textContent = RP === 'localhost' ? 'rehearsal on localhost' : RP;
 window.addEventListener('hashchange', () => { S.confirm = ''; render(); });
 reload().then(render).catch((e) => { $app.textContent = 'This browser cannot keep a library of boxes: ' + e.message; });
+// which commit of the code is being served (the deployment writes COMMIT next to the app)
+fetch('COMMIT', { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')).then((t) => { const sha = t.trim(); if (/^[0-9a-f]{40}$/.test(sha)) { const a = document.getElementById('commitLink'); a.textContent = sha.slice(0, 7); a.href = 'https://github.com/lambdasistemi/recover-box/commit/' + sha; a.hidden = false; } }).catch(() => {});

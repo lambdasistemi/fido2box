@@ -39,3 +39,8 @@ tr.click { cursor: pointer; } tr.click:hover { background: var(--chip); }
 code { background: var(--chip); padding: .05rem .3rem; border-radius: 4px; font-size: .85em; }
 .card input:not([type=checkbox]) { width: 100%; max-width: 30rem; }
 #syncActions { margin-top: .8rem; }
+.where a { color: var(--muted); } .where a:hover { color: var(--fg); }
+.step { display: flex; gap: .8rem; padding: .7rem 0; border-top: 1px solid var(--line); } .step:first-of-type { border-top: 0; }
+.step .grow { flex: 1; min-width: 0; } .step .num { flex: none; width: 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--chip); color: var(--muted); display: grid; place-items: center; font-size: .85rem; font-weight: 700; }
+.step .num.done { background: var(--ok); color: #fff; } ol { margin: .3rem 0 .6rem 1.1rem; padding: 0; }
+.card table + .row { margin-top: .8rem; }

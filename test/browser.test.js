@@ -10,6 +10,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' };
 const server = http.createServer((q, r) => {
   const p = decodeURIComponent(q.url.split('?')[0]).replace(/^\//, '') || 'index.html';
+  if (p === 'COMMIT') { r.writeHead(200); return r.end('0123456789abcdef0123456789abcdef01234567\n'); }
   fs.readFile(path.join(WEB, p), (e, d) => { if (e) { r.writeHead(404); return r.end(); } r.writeHead(200, { 'content-type': TYPES[path.extname(p)] || 'text/plain' }); r.end(d); });
 });
 // the fake GitHub, installed in every page before its scripts run
@@ -57,6 +58,8 @@ async function main() {
     // ===== empty library, make a box =====
     await open();
     ok(await has('No boxes yet'), 'a new browser has an empty library');
+    ok((await run(`${q('#codeLink')}.href`)) === 'https://github.com/lambdasistemi/recover-box', 'the top bar links to the code');
+    ok((await run(`${q('#commitLink')}.textContent`)) === '0123456' && (await run(`${q('#commitLink')}.href`)).endsWith('/commit/0123456789abcdef0123456789abcdef01234567'), 'the top bar shows and links the commit being served');
     await click('#newBtn'); await fill('#newName', 'bad name!'); await fill('#newKey', 'hk-home'); await click('#createBox'); await sleep(500);
     ok(await has('letters, digits'), 'a bad box name is refused');
     await fill('#newName', 'paolo'); await click('#createBox');
@@ -99,6 +102,16 @@ async function main() {
     ok(await has('This box is locked'), 'the library survives a reload; the box is locked again');
     await click('#unlockBtn');
     ok(await until(`document.body.innerText.includes('Google')`), 'Unlock with a key shows the items again');
+    // ===== a key that never answers must not freeze the app =====
+    await send('WebAuthn.setAutomaticPresenceSimulation', { authenticatorId: key1.authenticatorId, enabled: false });
+    await click('#tab-keys'); await sleep(200); await click('#detectBtn'); await sleep(400);
+    await click('#tab-items'); await sleep(200);
+    await fill('#iName', 'While waiting'); await fill('#iUrl', 'https://example.com'); await fill('#iSecret', 'w'); await click('#addItem'); await sleep(600);
+    ok(await has('While waiting'), 'while a key request is pending, other buttons still work');
+    await click('#tab-keys'); await sleep(200); await click('#detectBtn'); await sleep(300);
+    ok(await has('Still waiting') || await has('Still working'), 'pressing Detect again says it is still waiting instead of doing nothing');
+    await send('WebAuthn.setAutomaticPresenceSimulation', { authenticatorId: key1.authenticatorId, enabled: true });
+    await run(`document.querySelector('#lockBtn') && void 0`); await open('#/box/paolo'); await click('#unlockBtn'); await until(`!!${q('#lockBtn')}`);
     // ===== another key cannot open it =====
     await send('WebAuthn.removeVirtualAuthenticator', { authenticatorId: key1.authenticatorId }); const key2 = await auth();
     await open('#/box/paolo'); await click('#unlockBtn'); await sleep(1500);
@@ -114,6 +127,8 @@ async function main() {
     await open(); await click('#newBtn'); await fill('#newName', 'two'); await fill('#newKey', 'k1'); await click('#createBox');
     await until(`location.hash === '#/box/two' && !!${q('#lockBtn')}`);
     await fill('#iName', 'Site'); await fill('#iUrl', 'https://example.org'); await fill('#iSecret', 's1'); await click('#addItem'); await sleep(400);
+    await click('#tab-sync'); await sleep(200);
+    ok(await has('Connect to GitHub') && (await run(`${q('#openGh')}.href`)) === 'https://github.com/settings/personal-access-tokens/new', 'the Sync tab walks through connecting: the token step links to GitHub');
     await fill('#iToken', 'ghp_FAKE'); await click('#addToken'); await sleep(500);
     ok(await has('A token is kept in this box') && !(await has('ghp_FAKE')), 'the GitHub token is kept in the box and never displayed');
     ok(!(await run(`lib.list().then((l) => JSON.stringify(l))`)).includes('ghp_FAKE'), 'the token is not readable in the library either');
@@ -121,6 +136,8 @@ async function main() {
     await open('#/box/two'); await click('#unlockBtn'); await until(`!!${q('#lockBtn')}`);
     await click('#tab-sync'); await sleep(200);
     ok(await run(`!${q('#pushBtn')}.disabled`), 'with the token available, Push is enabled');
+    await click('#testGh'); await sleep(700);
+    ok(/Connected: 0 box/.test(await run(`${q('#connState')}.textContent`)), 'Test the connection reports the boxes on GitHub');
     await click('#pushBtn'); await sleep(800);
     const gh = await run('JSON.stringify(window.__gh)'); const g = JSON.parse(gh);
     ok(g.puts.length === 1 && g.puts[0].path === 'boxes/two.json' && g.puts[0].message === 'box rev 3' && g.auth.every((a) => a === 'Bearer ghp_FAKE'), 'Push writes boxes/two.json with one commit, using the token from the box');
