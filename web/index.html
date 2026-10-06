@@ -129,6 +129,7 @@
   </footer>
 </main>
 
+<script src="config.js"></script>
 <script src="box.js"></script>
 <script>
 const T = {
@@ -181,7 +182,7 @@ function setRepo(v, store) {
   $('repoGet').hidden = !repoOk; $('repoPut').hidden = !repoOk;
   if (repoOk) { $('repoGet').href = 'https://github.com/' + v + '/blob/main/box.json'; $('repoPut').href = 'https://github.com/' + v + '/upload/main'; }
 }
-$('repo').value = new URLSearchParams(location.search).get('repo') || remembered(); setRepo($('repo').value, false);
+$('repo').value = new URLSearchParams(location.search).get('repo') || remembered() || ((window.BOX_DEFAULTS || {}).repo || ''); setRepo($('repo').value, false);
 $('repo').oninput = () => setRepo($('repo').value, true);
 $('s0').textContent = L.s0; $('h0').textContent = L.h0; $('fileBtn').textContent = L.fileBtn; $('newBtn').textContent = L.newBtn;
 
