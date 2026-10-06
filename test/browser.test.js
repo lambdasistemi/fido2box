@@ -64,6 +64,9 @@ async function main() {
     ok(await has('No keys known in this browser yet') && (await run(`!${q('#detectAll')}.disabled`)), 'Keys view with no boxes: Detect is not greyed out and the page explains why there is nothing to detect');
     await click('#detectAll'); await sleep(300);
     ok(await has('No keys are known here yet'), 'pressing Detect with no known keys says what to do');
+    await click('#testKey'); await until(`!!${q('#probeResult')}`);
+    ok(await has('PIN verified: yes') && await has('PRF / hmac-secret): yes'), 'Test the plugged-in key works with no box at all: PIN verified, PRF supported');
+    ok((await run(`lib.list().then((l) => l.length)`)) === 0, 'testing a key stores nothing in the library');
     await open();
     await click('#newBtn'); await fill('#newName', 'bad name!'); await fill('#newKey', 'hk-home'); await click('#createBox'); await sleep(500);
     ok(await has('letters, digits'), 'a bad box name is refused');
@@ -188,6 +191,10 @@ async function main() {
     await btn('Delete from this browser'); await sleep(150); ok(!!(await run(`lib.get('imp')`)), 'delete from this browser asks first');
     await btn('Yes, delete from this browser'); await sleep(600);
     ok(!(await run(`lib.get('imp')`)) && !!g.files, 'confirming deletes only the local copy');
+    // a key without PRF is reported as unusable for boxes
+    await send('WebAuthn.removeVirtualAuthenticator', { authenticatorId: key3.authenticatorId }); await auth({ hasPrf: false });
+    await open('#/keys'); await click('#testKey'); await until(`!!${q('#probeResult')}`);
+    ok(await has('PRF / hmac-secret): NO'), 'a key without PRF is reported as unable to hold a box key');
   } finally { try { ws.close(); } catch (e) {} proc.kill(); server.close(); try { fs.rmSync(profile, { recursive: true, force: true }); } catch (e) {} }
   ok(pageErrors.length === 0, 'no uncaught page errors' + (pageErrors.length ? ': ' + pageErrors[0] : ''));
   console.log('\n' + (n - fails) + '/' + n + ' passed'); process.exit(fails ? 1 : 0);
