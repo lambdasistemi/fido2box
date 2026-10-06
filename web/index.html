@@ -44,24 +44,38 @@
   <div class="demo" id="demo" hidden></div>
   <h1 id="title"></h1>
 
-  <div class="step">
+  <div class="step" id="pick">
     <div class="n">1</div>
-    <div><p id="s1"></p><p class="hint" id="h1"></p></div>
+    <div style="flex:1">
+      <p id="s0"></p>
+      <div id="boxes" class="row"></div>
+      <div class="row">
+        <button class="big quiet" id="fileBtn"></button>
+        <button class="big quiet" id="newBtn"></button>
+      </div>
+      <input type="file" id="file" accept=".json,application/json" hidden>
+      <p class="hint" id="h0"></p>
+      <p id="chosen" class="ok"></p>
+    </div>
   </div>
 
   <div class="step">
     <div class="n">2</div>
+    <div><p id="s1"></p><p class="hint" id="h1"></p></div>
+  </div>
+
+  <div class="step" id="unlockStep">
+    <div class="n">3</div>
     <div>
       <p id="s2"></p>
       <button class="big" id="go"></button>
-      <button class="big quiet" id="create" hidden>Create a box</button>
       <p class="hint" id="h2"></p>
       <div id="msg" aria-live="polite"></div>
     </div>
   </div>
 
   <div class="step" id="done" hidden>
-    <div class="n">3</div>
+    <div class="n">4</div>
     <div style="flex:1">
       <p class="ok" id="okmsg"></p>
       <div id="items"></div>
@@ -114,6 +128,8 @@
 const T = {
   en: { demo: 'REHEARSAL on this computer: keys added here do not work on the real address. Use dummy values.',
     title: 'Get your secrets',
+    s0: 'Choose a box.', fileBtn: 'Open a box file from this computer', newBtn: 'Make a new box',
+    h0: 'A box is one locked file. Opening a file here never sends it anywhere.', chosen: 'Box: ', pickfirst: 'Choose a box first.', badfile: 'That file is not a box.',
     s1: 'Plug in your security key.', h1: 'If it does not fit the computer, use the small adapter that comes with it.',
     s2: 'Press the button. Your browser will ask for the key’s PIN. Then touch the key.', go: 'Unlock',
     h2: 'Touch means: put your finger on the key until it answers.',
@@ -125,6 +141,8 @@ const T = {
     e_none: 'There is no box here yet. Press “Create a box” to make one.', e_other: 'Something went wrong: ' },
   it: { demo: 'PROVA su questo computer: le chiavi aggiunte qui non funzionano all’indirizzo vero. Usa valori finti.',
     title: 'Recupera i tuoi segreti',
+    s0: 'Scegli una scatola.', fileBtn: 'Apri un file scatola da questo computer', newBtn: 'Crea una nuova scatola',
+    h0: 'Una scatola è un file chiuso a chiave. Aprirlo qui non lo invia da nessuna parte.', chosen: 'Scatola: ', pickfirst: 'Scegli prima una scatola.', badfile: 'Quel file non è una scatola.',
     s1: 'Inserisci la chiave di sicurezza.', h1: 'Se non entra nel computer, usa il piccolo adattatore in dotazione.',
     s2: 'Premi il pulsante. Il browser chiederà il PIN della chiave. Poi tocca la chiave.', go: 'Sblocca',
     h2: 'Toccare vuol dire appoggiare il dito sulla chiave finché risponde.',
@@ -145,6 +163,7 @@ if (RP === 'localhost') { $('demo').hidden = false; $('demo').textContent = L.de
 $('title').textContent = L.title; document.title = L.title;
 $('s1').textContent = L.s1; $('h1').textContent = L.h1; $('s2').textContent = L.s2; $('go').textContent = L.go;
 $('h2').textContent = L.h2; $('s3').textContent = L.s3;
+$('s0').textContent = L.s0; $('h0').textContent = L.h0; $('fileBtn').textContent = L.fileBtn; $('newBtn').textContent = L.newBtn;
 
 let box = null, vault = null, data = null, plain = [], pending = null, clearTimer = null;
 
@@ -168,21 +187,39 @@ function showItems() {
 }
 
 // ---------- unlock (or create) ----------
-function opened() { $('okmsg').textContent = L.ok; showItems(); $('done').hidden = false; $('go').hidden = true; $('create').hidden = true; }
+function opened() { $('okmsg').textContent = L.ok; showItems(); $('done').hidden = false; $('go').hidden = true; }
+
+// ---------- choosing the box: one of the site's, a file from this computer, or a new one ----------
+const NAME_RE = /^[A-Za-z0-9_-]+$/;
+const looksLikeBox = (b) => b && typeof b === 'object' && (b.v === 1 || b.v === 2) && Array.isArray(keysOf(b));
+function chooseBox(label, b) { box = b; $('chosen').textContent = L.chosen + label; $('msg').textContent = ''; }
+async function loadNamed(name) { const b = NAME_RE.test(name) ? await loadBox('boxes/' + name + '.json') : null; if (looksLikeBox(b)) chooseBox(name, b); return !!box; }
+$('fileBtn').onclick = () => $('file').click();
+$('file').onchange = async (e) => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  try { const b = JSON.parse(await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsText(f); })); if (!looksLikeBox(b)) throw new Error('x'); chooseBox(f.name, b); }
+  catch (x) { box = null; $('chosen').textContent = ''; say('msg', L.badfile, 'bad'); }
+};
+$('newBtn').onclick = () => { data = newDataKey(); vault = emptyVault(); plain = []; box = null; $('chosen').textContent = ''; $('msg').textContent = ''; opened(); openManage(); };
+(async () => {
+  const want = new URLSearchParams(location.search).get('box');
+  if (want && await loadNamed(want)) return;
+  let names = []; try { const r = await fetch('boxes/index.json', { cache: 'no-store' }); if (r.ok) names = (await r.json()).filter((n) => typeof n === 'string' && NAME_RE.test(n)); } catch (e) {}
+  if (names.length === 1) { await loadNamed(names[0]); return; }
+  if (names.length) { names.forEach((n) => { const b = document.createElement('button'); b.className = 'big quiet'; b.textContent = n; b.onclick = () => loadNamed(n); $('boxes').appendChild(b); }); return; }
+  const legacy = await loadBox('box.json'); if (looksLikeBox(legacy)) chooseBox('box.json', legacy);   // a single box next to the page
+})();
+
 $('go').onclick = async () => {
-  const msg = $('msg'); msg.className = ''; msg.textContent = L.wait; $('go').disabled = true; $('done').hidden = true;
+  const msg = $('msg'); if (!box) { msg.className = 'bad'; msg.textContent = L.pickfirst; return; }
+  msg.className = ''; msg.textContent = L.wait; $('go').disabled = true; $('done').hidden = true;
   try {
-    box = await loadBox('box.json'); if (!box) { const e = new Error('none'); e.name = 'NoBundle'; throw e; }
     data = await unlockVault(box); plain = await listItems(box, data);
     vault = { v: 2, rpId: box.rpId || RP, keys: keysOf(box), items: [] }; await rebuildItems();
     msg.textContent = ''; opened();
-  } catch (e) {
-    msg.className = 'bad';
-    if (e.name === 'NoBundle') { msg.textContent = L.e_none; $('create').hidden = false; }
-    else msg.textContent = niceError(e, L);
-  } finally { $('go').disabled = false; }
+  } catch (e) { msg.className = 'bad'; msg.textContent = niceError(e, L); }
+  finally { $('go').disabled = false; }
 };
-$('create').onclick = () => { data = newDataKey(); vault = emptyVault(); plain = []; $('msg').textContent = ''; opened(); openManage(); };
 
 // ---------- editing ----------
 const dirty = () => { $('dirty').hidden = false; };

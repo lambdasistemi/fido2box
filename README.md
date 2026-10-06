@@ -18,11 +18,12 @@ Details and limits: [AUDIT.md](AUDIT.md).
 ## Use it
 
 1. Host the `web/` folder over **https** at the address you will always use. A key's lock is tied to the page's host name (or to a `<meta name="rp-id" content="example.org">` you set), so enrol the keys on the final address.
-2. Open `index.html`, press **Create a box**, **add items**, **add a key** (PIN and touch, twice), **save `box.json`** and publish it next to the page.
-3. From then on `index.html` is the button you give to someone.
-4. `?lang=it` shows Italian.
+2. Open `index.html`, press **Make a new box**, **add items**, **add a key** (PIN and touch, twice) and **save the box**: you get a file. A box is just that one locked file.
+3. Where the file lives is up to you. Put it on the site as `boxes/NAME.json` (list the names in `boxes/index.json`, e.g. `["paolo","wife"]`), or keep it anywhere and open it from the page with **Open a box file from this computer** (it is read in the browser and never sent). `?box=NAME` preselects a box on the site.
+4. From then on `index.html` is the button you give to someone.
+5. `?lang=it` shows Italian.
 
-Add more keys later: open `index.html`, unlock with a key already in the box, press **Edit this box**, add the new one, publish the new file.
+Add more keys later: open `index.html`, unlock with a key already in the box, press **Edit this box**, add the new one, save the box and replace the old file.
 
 Rehearse on `http://localhost` first: keys added there do not work on your real address.
 

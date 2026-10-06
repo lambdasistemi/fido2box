@@ -28,9 +28,9 @@ const set = (w, id, v) => { w.document.getElementById(id).value = v; };
   let w = await page('index.html', null);
   ok(!w.document.getElementById('demo').hidden, 'rehearsal banner on localhost');
   click(w, 'go'); await tick(200);
-  ok(/no box here yet/i.test(w.document.getElementById('msg').textContent) && !w.document.getElementById('create').hidden, 'no box.json: friendly message and a Create button');
-  click(w, 'create'); await tick(100);
-  ok(!w.document.getElementById('manage').hidden, 'creating opens the editor');
+  ok(/Choose a box first/.test(w.document.getElementById('msg').textContent), 'nothing chosen: Unlock asks to choose a box');
+  click(w, 'newBtn'); await tick(100);
+  ok(!w.document.getElementById('manage').hidden, 'making a new box opens the editor');
   set(w, 'name', '1Password'); set(w, 'url', 'https://my.1password.com/signin'); set(w, 'secret', 'A3-TEST-SECRET'); click(w, 'addItem'); await tick(100);
   set(w, 'name', 'Bad'); set(w, 'url', 'javascript:alert(1)'); set(w, 'secret', 'x'); click(w, 'addItem'); await tick(60);
   ok(/web address/.test(w.document.getElementById('itemMsg').textContent), 'a javascript: address is refused');
@@ -73,6 +73,37 @@ const set = (w, id, v) => { w.document.getElementById(id).value = v; };
   ok($$(w, '#items h3').map((h) => h.textContent).join() === 'Google,GitHub', 'the list above follows the edits');
   w = await page('index.html', file2); click(w, 'go'); await tick(400);
   ok($$(w, '#items h3').map((h) => h.textContent).join() === 'Google,GitHub', 'second file opens with the right items');
+  // ===== several boxes on the site, picked by name or by ?box= =====
+  const other = { ...file2 };
+  const served = { 'boxes/index.json': ['paolo', 'wife', '../evil'], 'boxes/paolo.json': file, 'boxes/wife.json': other };
+  const many = async (qs) => { const wd = await page('index.html', file, qs); return wd; };
+  async function pageMany(qs) {
+    const html = fs.readFileSync(path.join(DIR, 'index.html'), 'utf8').replace('<script src="box.js"></script>', '<script>' + fs.readFileSync(path.join(DIR, 'box.js'), 'utf8') + '</script>');
+    const dom = new JSDOM(html, { runScripts: 'dangerously', url: 'http://localhost:8099/' + qs, pretendToBeVisual: true,
+      beforeParse(w) { Object.defineProperty(w, 'crypto', { value: nodeCrypto.webcrypto, configurable: true }); w.TextEncoder = TextEncoder; w.TextDecoder = TextDecoder; w.btoa = btoa; w.atob = atob;
+        w.fetch = async (u) => served[u] ? { ok: true, json: async () => served[u] } : { ok: false }; w.__copied = fakeKey(w); } });
+    await tick(120); return dom.window;
+  }
+  w = await pageMany('');
+  ok($$(w, '#boxes button').map((b) => b.textContent).join() === 'paolo,wife', 'several boxes: one button per name, a bad name is dropped');
+  ok(w.document.getElementById('chosen').textContent === '', 'several boxes: none chosen until you pick');
+  $$(w, '#boxes button')[0].click(); await tick(120);
+  ok(/paolo/.test(w.document.getElementById('chosen').textContent), 'picking a name chooses that box');
+  click(w, 'go'); await tick(400);
+  ok($$(w, '#items h3').length === 2, 'the picked box unlocks');
+  w = await pageMany('?box=wife');
+  ok(/wife/.test(w.document.getElementById('chosen').textContent), '?box=name preselects that box');
+  w = await pageMany('?box=../evil');
+  ok(w.document.getElementById('chosen').textContent === '', '?box= with a path is ignored');
+  // ===== a box file from this computer =====
+  w = await page('index.html', null);
+  const pick = (wd, text) => { const f = new wd.File([text], 'mine.json'); Object.defineProperty(wd.document.getElementById('file'), 'files', { value: [f], configurable: true }); wd.document.getElementById('file').dispatchEvent(new wd.Event('change')); };
+  pick(w, 'not json'); await tick(100);
+  ok(/not a box/.test(w.document.getElementById('msg').textContent), 'a file that is not a box is refused');
+  pick(w, JSON.stringify(file)); await tick(100);
+  ok(/mine\.json/.test(w.document.getElementById('chosen').textContent), 'a box file from the computer is chosen');
+  click(w, 'go'); await tick(400);
+  ok($$(w, '#items h3').map((h) => h.textContent).join() === '1Password,Google', 'the uploaded box unlocks');
   // ===== Italian =====
   w = await page('index.html', file, '?lang=it'); click(w, 'go'); await tick(400);
   ok(w.document.getElementById('title').textContent === 'Recupera i tuoi segreti' && /Copia il segreto/.test(w.document.body.textContent), 'Italian version works');
