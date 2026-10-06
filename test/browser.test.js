@@ -61,9 +61,9 @@ async function main() {
     ok((await run(`${q('#codeLink')}.href`)) === 'https://github.com/lambdasistemi/recover-box', 'the top bar links to the code');
     ok((await run(`${q('#commitLink')}.textContent`)) === '0123456' && (await run(`${q('#commitLink')}.href`)).endsWith('/commit/0123456789abcdef0123456789abcdef01234567'), 'the top bar shows and links the commit being served');
     await open('#/keys');
-    ok(await has('No keys known in this browser yet') && (await run(`!${q('#detectAll')}.disabled`)), 'Keys view with no boxes: Detect is not greyed out and the page explains why there is nothing to detect');
+    ok(await has('No security keys known in this browser yet') && (await run(`!${q('#detectAll')}.disabled`)), 'Keys view with no boxes: Detect is not greyed out and the page explains why there is nothing to detect');
     await click('#detectAll'); await sleep(300);
-    ok(await has('No keys are known here yet'), 'pressing Detect with no known keys says what to do');
+    ok(await has('No security keys are known here yet'), 'pressing Detect with no known keys says what to do');
     await open();
     await click('#newBtn'); await fill('#newName', 'bad name!'); await fill('#newKey', 'hk-home'); await click('#createBox'); await sleep(500);
     ok(await has('letters, digits'), 'a bad box name is refused');
@@ -90,7 +90,7 @@ async function main() {
     ok(!(await text()).includes('1Password') && (await text()).includes('Google'), 'delete: confirming removes it');
     // ===== keys =====
     await click('#tab-keys'); await sleep(200);
-    ok(await has('the only key'), 'the only key cannot be removed');
+    ok(await has('the only security key'), 'the only key cannot be removed');
     await fill('#kName', 'hk-bag'); await click('#addKey');
     ok(await until(`document.body.innerText.includes('hk-bag')`), 'a second key is added (needs the box open)');
     await click('#detectBtn'); await sleep(800);
