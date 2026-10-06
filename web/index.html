@@ -27,6 +27,16 @@
   .row { display: flex; flex-wrap: wrap; gap: .7rem; }
   footer { color: var(--muted); font-size: .8rem; margin-top: 2rem; }
   footer a { color: var(--muted); }
+  input[type=checkbox] { width: auto; }
+  textarea, input:not([type=checkbox]) { width: 100%; font: 16px ui-monospace, monospace; padding: .6rem; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
+  label.f { display: block; margin-top: .6rem; }
+  button.small { font: inherit; font-size: .9rem; padding: .35rem .8rem; border-radius: 8px; border: 1px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer; }
+  .warn { background: var(--demo); border-radius: 10px; padding: .6rem .9rem; font-size: .85rem; margin-bottom: 1rem; }
+  .muted { color: var(--muted); font-size: .9rem; }
+  .step p.muted { margin: .1rem 0 .6rem; }
+  table { width: 100%; border-collapse: collapse; } td { padding: .35rem .3rem; border-bottom: 1px solid var(--line); font-size: .95rem; } td.r { text-align: right; }
+  .manage h2 { font-size: 1.1rem; margin: 1.2rem 0 .4rem; }
+  .manage h2:first-child { margin-top: 0; }
 </style>
 </head>
 <body>
@@ -44,6 +54,7 @@
     <div>
       <p id="s2"></p>
       <button class="big" id="go"></button>
+      <button class="big quiet" id="create" hidden>Create a box</button>
       <p class="hint" id="h2"></p>
       <div id="msg" aria-live="polite"></div>
     </div>
@@ -55,56 +66,93 @@
       <p class="ok" id="okmsg"></p>
       <div id="items"></div>
       <p class="hint" id="s3"></p>
+      <p><button class="small" id="edit">Edit this box</button></p>
+    </div>
+  </div>
+
+  <div class="step manage" id="manage" hidden>
+    <div style="flex:1">
+      <div class="warn" id="dirty" hidden><strong>Not saved yet.</strong> The changes exist only on this page until you save the box (last section) and put the file on the website.</div>
+
+      <h2>Things in the box</h2>
+      <p class="muted">A name, a web address (where <em>Open</em> goes) and a secret (what <em>Copy</em> copies).</p>
+      <table id="list"></table>
+      <label class="f muted" for="name">Name</label><input id="name" placeholder="e.g. 1Password" autocomplete="off">
+      <label class="f muted" for="url">Web address</label><input id="url" placeholder="https://my.1password.com/signin" autocomplete="off" spellcheck="false">
+      <label class="f muted" for="secret">Secret</label><input id="secret" type="password" autocomplete="off" spellcheck="false">
+      <p class="muted"><label><input type="checkbox" id="showsec"> show it while typing</label></p>
+      <button class="small" id="addItem">Add to the box</button>
+      <div id="itemMsg" class="muted"></div>
+
+      <h2>Security keys</h2>
+      <p class="muted">Any one of these keys opens the whole box. Keep at least two, in different places.</p>
+      <table id="keys"></table>
+      <label class="f muted" for="keyName">Add a key: plug in only that one, give it a name</label>
+      <input id="keyName" placeholder="e.g. hk-bag" autocomplete="off">
+      <p><button class="small" id="addKey">Add the key that is plugged in</button></p>
+      <p class="muted">It asks for its PIN and a touch, twice.</p>
+      <div id="keyMsg" class="muted"></div>
+
+      <div id="outBox" hidden>
+        <h2>Save the box</h2>
+        <p class="muted">This page cannot change the website itself. The button gives you a file, <code>box.json</code>. It is locked, so it is safe to keep anywhere. Put it on the website in place of the old one: until you do, nothing changes.</p>
+        <button class="small" id="download">Save the box</button>
+        <button class="small" id="verify">Check that a key opens it</button>
+        <div id="verifyMsg" class="muted"></div>
+        <textarea id="out" hidden readonly></textarea>
+      </div>
     </div>
   </div>
 
   <footer>
-    <a href="?lang=en">English</a> · <a href="?lang=it">Italiano</a> ·
-    <a href="setup.html" id="adm"></a>
+    <a href="?lang=en">English</a> · <a href="?lang=it">Italiano</a>
   </footer>
 </main>
 
 <script src="box.js"></script>
 <script>
 const T = {
-  en: { demo: 'REHEARSAL on this computer: the values below are dummies.',
+  en: { demo: 'REHEARSAL on this computer: keys added here do not work on the real address. Use dummy values.',
     title: 'Get your secrets',
     s1: 'Plug in your security key.', h1: 'If it does not fit the computer, use the small adapter that comes with it.',
     s2: 'Press the button. Your browser will ask for the key’s PIN. Then touch the key.', go: 'Unlock',
     h2: 'Touch means: put your finger on the key until it answers.',
     wait: 'Waiting for your key…', ok: 'Done!', copy: 'Copy the secret', copied: 'Copied ✓', open: 'Open',
     s3: 'Press Open to go to the site, then press Copy and paste the secret where it asks. The copy is cleared after a minute.',
-    adm: 'Manage', empty: 'The box is empty.',
+    empty: 'The box is empty.',
     e_cancel: 'It was cancelled or took too long. Press Unlock again, and touch the key when it answers.',
     e_nokey: 'This browser or key cannot do this. Try Chrome or Edge, with the key plugged in.',
-    e_none: 'Nothing has been set up here yet.', e_other: 'Something went wrong: ' },
-  it: { demo: 'PROVA su questo computer: i valori qui sotto sono finti.',
+    e_none: 'There is no box here yet. Press “Create a box” to make one.', e_other: 'Something went wrong: ' },
+  it: { demo: 'PROVA su questo computer: le chiavi aggiunte qui non funzionano all’indirizzo vero. Usa valori finti.',
     title: 'Recupera i tuoi segreti',
     s1: 'Inserisci la chiave di sicurezza.', h1: 'Se non entra nel computer, usa il piccolo adattatore in dotazione.',
     s2: 'Premi il pulsante. Il browser chiederà il PIN della chiave. Poi tocca la chiave.', go: 'Sblocca',
     h2: 'Toccare vuol dire appoggiare il dito sulla chiave finché risponde.',
     wait: 'In attesa della chiave…', ok: 'Fatto!', copy: 'Copia il segreto', copied: 'Copiato ✓', open: 'Apri',
     s3: 'Premi Apri per andare al sito, poi premi Copia e incolla il segreto dove lo chiede. La copia si cancella dopo un minuto.',
-    adm: 'Gestisci', empty: 'La scatola è vuota.',
+    empty: 'La scatola è vuota.',
     e_cancel: 'Annullato o troppo lento. Premi di nuovo Sblocca e tocca la chiave quando risponde.',
     e_nokey: 'Questo browser o questa chiave non può farlo. Prova Chrome o Edge, con la chiave inserita.',
-    e_none: 'Qui non è ancora stato configurato nulla.', e_other: 'Qualcosa è andato storto: ' }
+    e_none: 'Qui non c’è ancora una scatola.', e_other: 'Qualcosa è andato storto: ' }
 };
 const q = new URLSearchParams(location.search).get('lang');
 const nav = (navigator.language || 'en').slice(0, 2);
 const lang = T[q] ? q : (T[nav] ? nav : 'en');
 const L = T[lang]; document.documentElement.lang = lang;
 const $ = (id) => document.getElementById(id);
+const say = (id, text, cls) => { const el = $(id); el.className = cls || 'muted'; el.textContent = text; };
 if (RP === 'localhost') { $('demo').hidden = false; $('demo').textContent = L.demo; }
 $('title').textContent = L.title; document.title = L.title;
 $('s1').textContent = L.s1; $('h1').textContent = L.h1; $('s2').textContent = L.s2; $('go').textContent = L.go;
-$('h2').textContent = L.h2; $('s3').textContent = L.s3; $('adm').textContent = L.adm;
+$('h2').textContent = L.h2; $('s3').textContent = L.s3;
 
-let clearTimer = null;
-function showItems(items) {
-  const box = $('items'); box.textContent = '';
-  if (!items.length) { const p = document.createElement('p'); p.textContent = L.empty; box.appendChild(p); return; }
-  items.forEach((it) => {
+let box = null, vault = null, data = null, plain = [], pending = null, clearTimer = null;
+
+// ---------- the list you use: Open and Copy ----------
+function showItems() {
+  const el = $('items'); el.textContent = '';
+  if (!plain.length) { const p = document.createElement('p'); p.textContent = L.empty; el.appendChild(p); return; }
+  plain.forEach((it) => {
     const wrap = document.createElement('div'); wrap.className = 'item';
     const h = document.createElement('h3'); h.textContent = it.title || '—'; wrap.appendChild(h);
     const row = document.createElement('div'); row.className = 'row';
@@ -115,19 +163,86 @@ function showItems(items) {
       await navigator.clipboard.writeText(it.secret); c.textContent = L.copied;
       clearTimeout(clearTimer); clearTimer = setTimeout(() => { navigator.clipboard.writeText(' ').catch(() => {}); c.textContent = L.copy; }, 60000);
     };
-    row.appendChild(c); wrap.appendChild(row); box.appendChild(wrap);
+    row.appendChild(c); wrap.appendChild(row); el.appendChild(wrap);
   });
 }
+
+// ---------- unlock (or create) ----------
+function opened() { $('okmsg').textContent = L.ok; showItems(); $('done').hidden = false; $('go').hidden = true; $('create').hidden = true; }
 $('go').onclick = async () => {
   const msg = $('msg'); msg.className = ''; msg.textContent = L.wait; $('go').disabled = true; $('done').hidden = true;
   try {
-    const vault = await loadBox('box.json'); if (!vault) { const e = new Error('none'); e.name = 'NoBundle'; throw e; }
-    const items = await listItems(vault, await unlockVault(vault));
-    msg.textContent = ''; $('okmsg').textContent = L.ok; showItems(items); $('done').hidden = false;
+    box = await loadBox('box.json'); if (!box) { const e = new Error('none'); e.name = 'NoBundle'; throw e; }
+    data = await unlockVault(box); plain = await listItems(box, data);
+    vault = { v: 2, rpId: box.rpId || RP, keys: keysOf(box), items: [] }; await rebuildItems();
+    msg.textContent = ''; opened();
   } catch (e) {
     msg.className = 'bad';
-    msg.textContent = e.name === 'NoBundle' ? L.e_none : niceError(e, L);
+    if (e.name === 'NoBundle') { msg.textContent = L.e_none; $('create').hidden = false; }
+    else msg.textContent = niceError(e, L);
   } finally { $('go').disabled = false; }
+};
+$('create').onclick = () => { data = newDataKey(); vault = emptyVault(); plain = []; $('msg').textContent = ''; opened(); openManage(); };
+
+// ---------- editing ----------
+const dirty = () => { $('dirty').hidden = false; };
+async function rebuildItems() { vault = { ...vault, items: await Promise.all(plain.map((it) => encryptItem(data, it))) }; }
+function confirmCell(td, key, label, doIt) {               // a button that needs a second click
+  td.textContent = '';
+  const mk = (t, f) => { const b = document.createElement('button'); b.className = 'small'; b.textContent = t; b.onclick = f; return b; };
+  if (pending === key) td.append(mk('Yes, ' + label.toLowerCase(), doIt), ' ', mk('Keep', () => { pending = null; render(); }));
+  else td.appendChild(mk(label, () => { pending = key; render(); }));
+}
+function openManage() { $('manage').hidden = false; $('edit').hidden = true; render(); }
+$('edit').onclick = openManage;
+function render() {
+  const list = $('list'); list.textContent = '';
+  plain.forEach((it, i) => {
+    const tr = document.createElement('tr');
+    const a = document.createElement('td'); a.textContent = it.title || '(no name)';
+    const b = document.createElement('td'); b.className = 'muted'; b.textContent = safeUrl(it.url) ? new URL(it.url).host : 'no address';
+    const c = document.createElement('td'); c.className = 'r';
+    confirmCell(c, 'i' + i, 'Delete', async () => { plain.splice(i, 1); pending = null; await rebuildItems(); dirty(); render(); });
+    tr.append(a, b, c); list.appendChild(tr);
+  });
+  if (!plain.length) { const tr = document.createElement('tr'); const td = document.createElement('td'); td.className = 'muted'; td.textContent = 'Nothing yet.'; tr.appendChild(td); list.appendChild(tr); }
+  const kl = $('keys'); kl.textContent = '';
+  const ks = vault.keys;
+  ks.forEach((k, i) => {
+    const tr = document.createElement('tr');
+    const a = document.createElement('td'); a.textContent = k.name;
+    const c = document.createElement('td'); c.className = 'r';
+    if (ks.length > 1) confirmCell(c, 'k' + i, 'Remove', () => { vault = { ...vault, keys: vault.keys.filter((_, j) => j !== i) }; pending = null; dirty(); render(); });
+    tr.append(a, c); kl.appendChild(tr);
+  });
+  if (!ks.length) { const tr = document.createElement('tr'); const td = document.createElement('td'); td.className = 'muted'; td.textContent = 'No key yet: add one before you save.'; tr.appendChild(td); kl.appendChild(tr); }
+  $('outBox').hidden = !ks.length;
+  if (ks.length) $('out').value = JSON.stringify(vault, null, 2);
+  showItems();
+}
+$('showsec').onchange = (e) => { $('secret').type = e.target.checked ? 'text' : 'password'; };
+$('addItem').onclick = async () => {
+  const title = $('name').value.trim(), url = $('url').value.trim(), secret = $('secret').value;
+  if (!title) return say('itemMsg', 'Give it a name.', 'bad');
+  if (!safeUrl(url)) return say('itemMsg', 'The web address must start with https://', 'bad');
+  if (!secret) return say('itemMsg', 'The secret is empty.', 'bad');
+  plain.push({ title, url, secret }); await rebuildItems();
+  $('name').value = ''; $('url').value = ''; $('secret').value = '';
+  say('itemMsg', 'Added "' + title + '".', 'ok'); dirty(); render();
+};
+$('addKey').onclick = async () => {
+  const name = $('keyName').value.trim(); if (!name) return say('keyMsg', 'Give the key a name.', 'bad');
+  $('addKey').disabled = true; say('keyMsg', 'Waiting for the key that is plugged in: PIN and touch, twice...');
+  try { vault = await enrolKey(vault, name, data); $('keyName').value = ''; say('keyMsg', 'Added "' + name + '".', 'ok'); dirty(); render(); }
+  catch (e) { say('keyMsg', niceError(e, L), 'bad'); }
+  finally { $('addKey').disabled = false; }
+};
+$('download').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([$('out').value], { type: 'application/json' })); a.download = 'box.json'; a.click(); };
+$('verify').onclick = async () => {
+  say('verifyMsg', 'Opening the new file with a key in it (PIN, touch)...');
+  try { const d = await unlockVault(vault); const items = await listItems(vault, d);
+        say('verifyMsg', 'It opens: ' + items.length + ' thing(s): ' + items.map((i) => i.title).join(', '), 'ok'); }
+  catch (e) { say('verifyMsg', niceError(e, L), 'bad'); }
 };
 </script>
 </body>
