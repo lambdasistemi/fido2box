@@ -24,46 +24,51 @@
 </style>
 </head>
 <body>
+<body>
 <main>
-  <h1>Recover box</h1>
-  <p class="muted">Keep secrets behind a hardware key. Each item has a title, a web address to open, and a secret to copy.</p>
+  <h1>Recover box: manage</h1>
   <div class="warn" id="where"></div>
+  <div class="warn" id="dirty" hidden><strong>Not saved yet.</strong> What you see here exists only on this page. Press <em>Save the box</em> at the bottom, then put the saved file on the website.</div>
 
   <section>
-    <h2>The box</h2>
+    <h2>1. Open the box</h2>
     <div id="state" class="muted">looking for box.json…</div>
     <div class="row">
-      <button class="q" id="unlock" hidden>Unlock it with a key that is in it</button>
-      <button class="q" id="startNew" hidden>Start a new box instead</button>
+      <button id="unlock" hidden>Open it with one of its keys</button>
+      <button class="q" id="startNew" hidden>Start an empty box instead</button>
     </div>
     <div id="unlockMsg" class="muted"></div>
   </section>
 
   <section id="itemsBox" hidden>
-    <h2>Items</h2>
+    <h2>2. Things in the box</h2>
+    <p class="muted">Each thing has a name, a web address (where <em>Open</em> goes) and a secret (what <em>Copy</em> copies).</p>
     <table id="list"></table>
-    <div class="row" style="display:block">
-      <label class="f muted" for="title">Title</label><input id="title" placeholder="e.g. 1Password" autocomplete="off">
-      <label class="f muted" for="url">Field 1: where to go (https address)</label><input id="url" placeholder="https://my.1password.com/signin" autocomplete="off" spellcheck="false">
-      <label class="f muted" for="secret">Field 2: the secret to copy</label><input id="secret" type="password" autocomplete="off" spellcheck="false">
+    <div style="margin-top:.8rem">
+      <label class="f muted" for="title">Name</label><input id="title" placeholder="e.g. 1Password" autocomplete="off">
+      <label class="f muted" for="url">Web address</label><input id="url" placeholder="https://my.1password.com/signin" autocomplete="off" spellcheck="false">
+      <label class="f muted" for="secret">Secret</label><input id="secret" type="password" autocomplete="off" spellcheck="false">
       <label class="muted"><input type="checkbox" id="showsec"> show it while typing</label>
-      <div class="row"><button id="addItem">Add item</button></div>
+      <div class="row"><button id="addItem">Add to the box</button></div>
       <div id="itemMsg" class="muted"></div>
     </div>
   </section>
 
   <section id="keysBox" hidden>
-    <h2>Keys that open this box</h2>
-    <div id="keys" class="muted"></div>
-    <div class="row"><input id="keyName" placeholder="name of the key that is plugged in, e.g. hk-phone" style="flex:1"><button id="addKey">Add this key</button></div>
+    <h2>3. Security keys</h2>
+    <p class="muted">Any one of these keys opens the whole box. Keep at least two, in different places.</p>
+    <table id="keys"></table>
+    <div class="row"><input id="keyName" placeholder="a name for the key you are about to plug in" style="flex:1"><button id="addKey">Add the key that is plugged in</button></div>
+    <p class="muted">Plug in only that one key. It asks for its PIN and a touch, twice.</p>
     <div id="keyMsg" class="muted"></div>
   </section>
 
   <section id="outBox" hidden>
-    <h2>The new file (public, safe to publish)</h2>
-    <textarea id="out" rows="6" readonly spellcheck="false"></textarea>
-    <div class="row"><button id="download">Download box.json</button><button class="q" id="verify">Test: unlock it now</button></div>
+    <h2>4. Save the box</h2>
+    <p class="muted">This page cannot change the website by itself. The button gives you a file, <code>box.json</code>. It is locked, so it is safe to keep anywhere. Put it on the website in place of the old one: until you do, nothing changes.</p>
+    <div class="row"><button id="download">Save the box</button><button class="q" id="verify">Check that a key opens it</button></div>
     <div id="verifyMsg" class="muted"></div>
+    <textarea id="out" hidden readonly></textarea>
   </section>
 </main>
 <script src="box.js"></script>
@@ -72,11 +77,20 @@ const $ = (id) => document.getElementById(id);
 const L = { e_cancel: 'It was cancelled or timed out. Try again and touch the key when it answers.',
             e_nokey: 'This browser or key cannot do this (Chrome or Edge, key plugged in).', e_other: 'Something went wrong: ' };
 const say = (id, text, cls) => { const el = $(id); el.className = cls || 'muted'; el.textContent = text; };
-let box = null, vault = null, data = null, plain = [];
+let box = null, vault = null, data = null, plain = [], pending = null;   // pending = row waiting for "really?"
+const dirty = () => { $('dirty').hidden = false; };
 
-$('where').innerHTML = RP === 'localhost'
-  ? '<strong>Rehearsal on localhost.</strong> Keys added here do NOT work on lambdasistemi.net. Use dummy values.'
-  : '<strong>Real address: ' + RP + '.</strong> Keys added here belong to this address only.';
+$('where').textContent = RP === 'localhost'
+  ? 'Rehearsal on localhost. Keys added here do NOT work on the real address. Use dummy values.'
+  : 'Real address: ' + RP + '. Keys added here belong to this address only.';
+
+function confirmCell(td, key, label, doIt) {
+  td.textContent = '';
+  const mk = (t, f, q) => { const b = document.createElement('button'); if (q) b.className = 'q'; b.textContent = t; b.onclick = f; return b; };
+  if (pending === key) {
+    td.append(mk('Yes, ' + label.toLowerCase(), doIt), ' ', mk('Keep', () => { pending = null; render(); }, true));
+  } else td.appendChild(mk(label, () => { pending = key; render(); }, true));
+}
 
 function render() {
   const open = !!data;
@@ -84,15 +98,24 @@ function render() {
   const list = $('list'); list.textContent = '';
   plain.forEach((it, i) => {
     const tr = document.createElement('tr');
-    const a = document.createElement('td'); a.textContent = it.title || '(no title)';
-    const b = document.createElement('td'); b.className = 'muted'; b.textContent = (safeUrl(it.url) ? new URL(it.url).host : 'no address') + ', secret of ' + it.secret.length + ' characters';
-    const c = document.createElement('td'); c.className = 'r'; const d = document.createElement('button'); d.className = 'q'; d.textContent = 'Delete';
-    d.onclick = async () => { plain.splice(i, 1); await rebuildItems(); render(); };
-    c.appendChild(d); tr.append(a, b, c); list.appendChild(tr);
+    const a = document.createElement('td'); a.textContent = it.title || '(no name)';
+    const b = document.createElement('td'); b.className = 'muted'; b.textContent = safeUrl(it.url) ? new URL(it.url).host : 'no address';
+    const c = document.createElement('td'); c.className = 'r';
+    confirmCell(c, 'i' + i, 'Delete', async () => { plain.splice(i, 1); pending = null; await rebuildItems(); dirty(); render(); });
+    tr.append(a, b, c); list.appendChild(tr);
   });
-  if (!plain.length) { const tr = document.createElement('tr'); const td = document.createElement('td'); td.className = 'muted'; td.textContent = 'No items yet.'; tr.appendChild(td); list.appendChild(tr); }
-  $('keys').textContent = vault && vault.keys.length ? vault.keys.map((k) => k.name).join(', ') : 'None yet: add at least one key before you publish.';
-  const ready = open && vault.keys.length > 0;
+  if (!plain.length) { const tr = document.createElement('tr'); const td = document.createElement('td'); td.className = 'muted'; td.textContent = 'Nothing yet.'; tr.appendChild(td); list.appendChild(tr); }
+  const kl = $('keys'); kl.textContent = '';
+  const ks = vault ? vault.keys : [];
+  ks.forEach((k, i) => {
+    const tr = document.createElement('tr');
+    const a = document.createElement('td'); a.textContent = k.name;
+    const c = document.createElement('td'); c.className = 'r';
+    if (ks.length > 1) confirmCell(c, 'k' + i, 'Remove', () => { vault = { ...vault, keys: vault.keys.filter((_, j) => j !== i) }; pending = null; dirty(); render(); });
+    tr.append(a, c); kl.appendChild(tr);
+  });
+  if (!ks.length) { const tr = document.createElement('tr'); const td = document.createElement('td'); td.className = 'muted'; td.textContent = 'No key yet: add one before you save.'; tr.appendChild(td); kl.appendChild(tr); }
+  const ready = open && ks.length > 0;
   $('outBox').hidden = !ready;
   if (ready) $('out').value = JSON.stringify(vault, null, 2);
 }
@@ -100,13 +123,13 @@ async function rebuildItems() { vault = { ...vault, items: await Promise.all(pla
 
 (async () => {
   box = await loadBox('box.json');
-  if (box) { say('state', 'Found: ' + keysOf(box).length + ' key(s), version ' + box.v + '. Unlock it to manage it, or start a new box.');
+  if (box) { say('state', 'There is a box on the website, with ' + keysOf(box).length + ' key(s). Open it with one of them to change it.');
              $('unlock').hidden = false; $('startNew').hidden = false; }
-  else { say('state', 'No box yet: creating a new one.'); startNew(); }
+  else { say('state', 'No box yet: starting an empty one.'); startNew(); }
 })();
 function startNew() {
   data = newDataKey(); vault = emptyVault(); plain = [];
-  $('unlock').hidden = true; $('startNew').hidden = true; say('unlockMsg', 'Starting a NEW box. The published one is replaced only when you publish the new file.');
+  $('unlock').hidden = true; $('startNew').hidden = true; say('unlockMsg', 'Empty box. The one on the website is replaced only when you put a new file there.');
   render();
 }
 $('startNew').onclick = startNew;
@@ -115,31 +138,31 @@ $('unlock').onclick = async () => {
   try {
     data = await unlockVault(box); plain = await listItems(box, data);
     vault = { v: 2, rpId: box.rpId, keys: keysOf(box), items: [] }; await rebuildItems();
-    say('unlockMsg', 'Unlocked: ' + plain.length + ' item(s).', 'ok'); render();
+    say('unlockMsg', 'Open: ' + plain.length + ' thing(s) inside.', 'ok'); render();
   } catch (e) { data = null; say('unlockMsg', niceError(e, L), 'bad'); }
 };
 $('showsec').onchange = (e) => { $('secret').type = e.target.checked ? 'text' : 'password'; };
 $('addItem').onclick = async () => {
   const title = $('title').value.trim(), url = $('url').value.trim(), secret = $('secret').value;
-  if (!title) return say('itemMsg', 'Give the item a title.', 'bad');
-  if (!safeUrl(url)) return say('itemMsg', 'Field 1 must be a web address starting with https://', 'bad');
-  if (!secret) return say('itemMsg', 'Field 2 (the secret) is empty.', 'bad');
+  if (!title) return say('itemMsg', 'Give it a name.', 'bad');
+  if (!safeUrl(url)) return say('itemMsg', 'The web address must start with https://', 'bad');
+  if (!secret) return say('itemMsg', 'The secret is empty.', 'bad');
   plain.push({ title, url, secret }); await rebuildItems();
   $('title').value = ''; $('url').value = ''; $('secret').value = '';
-  say('itemMsg', 'Added "' + title + '".', 'ok'); render();
+  say('itemMsg', 'Added "' + title + '".', 'ok'); dirty(); render();
 };
 $('addKey').onclick = async () => {
   const name = $('keyName').value.trim(); if (!name) return say('keyMsg', 'Give the key a name.', 'bad');
   $('addKey').disabled = true; say('keyMsg', 'Waiting for the key that is plugged in: PIN and touch, twice...');
-  try { vault = await enrolKey(vault, name, data); $('keyName').value = ''; say('keyMsg', 'Added "' + name + '".', 'ok'); render(); }
+  try { vault = await enrolKey(vault, name, data); $('keyName').value = ''; say('keyMsg', 'Added "' + name + '".', 'ok'); dirty(); render(); }
   catch (e) { say('keyMsg', niceError(e, L), 'bad'); }
   finally { $('addKey').disabled = false; }
 };
 $('download').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([$('out').value], { type: 'application/json' })); a.download = 'box.json'; a.click(); };
 $('verify').onclick = async () => {
-  say('verifyMsg', 'Unlocking the new file with a key in it (PIN, touch)...');
+  say('verifyMsg', 'Opening the new file with a key in it (PIN, touch)...');
   try { const d = await unlockVault(vault); const items = await listItems(vault, d);
-        say('verifyMsg', 'It opens: ' + items.length + ' item(s): ' + items.map((i) => i.title).join(', '), 'ok'); }
+        say('verifyMsg', 'It opens: ' + items.length + ' thing(s): ' + items.map((i) => i.title).join(', '), 'ok'); }
   catch (e) { say('verifyMsg', niceError(e, L), 'bad'); }
 };
 </script>
