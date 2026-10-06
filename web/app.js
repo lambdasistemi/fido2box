@@ -194,12 +194,12 @@ function keysView() {
   for (const r of S.boxes) for (const k of keysOf(r.box)) { const e = map.get(k.id) || { id: k.id, names: new Set(), boxes: [] }; e.names.add(k.name); e.boxes.push(r.name); map.set(k.id, e); }
   const all = [...map.values()];
   return h('div', null, h('div', { class: 'row sp' }, h('h1', null, 'Keys'),
-      h('button', { class: 'primary', id: 'detectAll', disabled: !all.length, on: { click: act(async () => { const id = await detectKey(all.map((e) => e.id)); S.detected = id; const e = map.get(id); say(e ? '"' + [...e.names].join(', ') + '" is inserted.' : 'A key answered that is not in any box here.'); }) } }, 'Detect the inserted key (touch)')),
+      h('button', { class: 'primary', id: 'detectAll', on: { click: act(async () => { if (!all.length) throw new Error('No keys are known here yet. Keys belong to boxes: make a box, or import one, then Detect can recognise its keys.'); const id = await detectKey(all.map((e) => e.id)); S.detected = id; const e = map.get(id); say(e ? '"' + [...e.names].join(', ') + '" is inserted.' : 'A key answered that is not in any box here.'); }) } }, 'Detect the inserted key (touch)')),
     h('p', { class: 'muted small' }, 'A web page cannot see which key is plugged in until you touch it. Detection asks the key to sign and matches its answer to the keys listed in your boxes.'),
     all.length ? h('div', { class: 'card' }, h('table', null, h('tr', null, h('th', null, 'Key'), h('th', null, 'Credential'), h('th', null, 'Opens')),
       all.map((e) => h('tr', null, h('td', null, h('strong', null, [...e.names].join(', ')), ' ', S.detected === e.id ? chip('inserted now', 'live') : null), h('td', { class: 'muted small' }, shortId(e.id)),
         h('td', null, e.boxes.map((b) => h('a', { class: 'chip', href: '#/box/' + encodeURIComponent(b) }, b)))))))
-      : h('div', { class: 'card empty' }, 'No keys yet: they belong to boxes.'));
+      : h('div', { class: 'card empty', id: 'noKeys' }, h('p', null, 'No keys known in this browser yet.'), h('p', { class: 'small' }, 'Keys belong to boxes. Make a box (Boxes → New box), or import or pull one, and its keys appear here. A key can only be recognised once some box lists it.')));
 }
 
 // ---------- Settings ----------
