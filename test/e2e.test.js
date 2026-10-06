@@ -131,12 +131,21 @@ const set = (w, id, v) => { w.document.getElementById(id).value = v; };
   const txt = await new Promise((ok2) => { const fr = new r.w.FileReader(); fr.onload = () => ok2(fr.result); fr.readAsText(r.saved()); });
   ok(JSON.stringify(JSON.parse(txt)) === JSON.stringify(file), 'the downloaded copy is the same box, without unlocking');
   // ===== a box repository is configured: links to it, nothing to compare with on the site =====
-  w = await page('index.html', null);
+  w = await page('index.html', null, '?repo=paolino/fido-box');
   ok(w.document.getElementById('repoGet').href === 'https://github.com/paolino/fido-box/blob/main/box.json' && !w.document.getElementById('repoGet').hidden, 'link to the box in the repository');
   click(w, 'newBtn'); await tick(100);
   set(w, 'name', 'X'); set(w, 'url', 'https://example.org'); set(w, 'secret', 's'); click(w, 'addItem'); await tick(100);
   set(w, 'keyName', 'k1'); click(w, 'addKey'); await tick(300);
   ok(w.document.getElementById('repoPut').href === 'https://github.com/paolino/fido-box/upload/main' && !w.document.getElementById('repoPut').hidden, 'save step links to the repository upload page');
+  // ===== the repository is a field: typed, validated, remembered =====
+  w = await page('index.html', null);
+  ok(w.document.getElementById('repoGet').hidden, 'no repository given: no GitHub links');
+  const typeRepo = (wd, v) => { set(wd, 'repo', v); wd.document.getElementById('repo').dispatchEvent(new wd.Event('input')); };
+  typeRepo(w, 'not a repo'); ok(w.document.getElementById('repoGet').hidden, 'an invalid repository name shows no links');
+  typeRepo(w, '../../evil'); ok(w.document.getElementById('repoGet').hidden, 'a path trick is not a repository name');
+  typeRepo(w, 'someone/their-box');
+  ok(w.document.getElementById('repoGet').href === 'https://github.com/someone/their-box/blob/main/box.json', 'a typed owner/name becomes the link');
+  ok(w.localStorage.getItem('box-repo') === 'someone/their-box', 'a valid name is remembered in the browser');
   // ===== Italian =====
   w = await page('index.html', file, '?lang=it'); click(w, 'go'); await tick(400);
   ok(w.document.getElementById('title').textContent === 'Recupera i tuoi segreti' && /Copia il segreto/.test(w.document.body.textContent), 'Italian version works');

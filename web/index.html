@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<meta name="box-repo" content="paolino/fido-box">
 <title>Recover box</title>
 <style>
   :root { color-scheme: light dark; --fg:#1b1b1f; --bg:#f6f7fb; --card:#fff; --muted:#5f6368; --accent:#1a73e8; --ok:#137333; --bad:#b3261e; --line:#dadce0; --demo:#fef7e0; }
@@ -55,6 +54,8 @@
         <button class="big quiet" id="newBtn"></button>
         <a class="big quiet" id="repoGet" target="_blank" rel="noopener noreferrer" hidden>Get my box from GitHub</a>
       </div>
+      <label class="f muted" for="repo" id="repoLbl">Your GitHub repository for the box</label>
+      <input id="repo" placeholder="owner/name, for example paolino/fido-box" autocomplete="off" spellcheck="false">
       <input type="file" id="file" accept=".json,application/json" hidden>
       <p class="hint" id="h0"></p>
       <p id="chosen" class="ok"></p>
@@ -170,9 +171,18 @@ if (RP === 'localhost') { $('demo').hidden = false; $('demo').textContent = L.de
 $('title').textContent = L.title; document.title = L.title;
 $('s1').textContent = L.s1; $('h1').textContent = L.h1; $('s2').textContent = L.s2; $('go').textContent = L.go;
 $('h2').textContent = L.h2; $('s3').textContent = L.s3;
-const REPO = ((document.querySelector('meta[name=box-repo]') || {}).content || '').trim();   // owner/name of the repository that holds the box file
-const repoOk = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(REPO);
-if (repoOk) { $('repoGet').href = 'https://github.com/' + REPO + '/blob/main/box.json'; $('repoGet').hidden = false; $('repoPut').href = 'https://github.com/' + REPO + '/upload/main'; $('repoPut').hidden = false; }
+// The repository that holds the box file is entered by the user, remembered in this browser, or given in the link (?repo=owner/name).
+const REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+let repoOk = false;
+const remembered = () => { try { return localStorage.getItem('box-repo') || ''; } catch (e) { return ''; } };
+function setRepo(v, store) {
+  v = (v || '').trim(); repoOk = REPO_RE.test(v);
+  if (store && repoOk) { try { localStorage.setItem('box-repo', v); } catch (e) {} }
+  $('repoGet').hidden = !repoOk; $('repoPut').hidden = !repoOk;
+  if (repoOk) { $('repoGet').href = 'https://github.com/' + v + '/blob/main/box.json'; $('repoPut').href = 'https://github.com/' + v + '/upload/main'; }
+}
+$('repo').value = new URLSearchParams(location.search).get('repo') || remembered(); setRepo($('repo').value, false);
+$('repo').oninput = () => setRepo($('repo').value, true);
 $('s0').textContent = L.s0; $('h0').textContent = L.h0; $('fileBtn').textContent = L.fileBtn; $('newBtn').textContent = L.newBtn;
 
 let box = null, vault = null, data = null, plain = [], pending = null, clearTimer = null;
