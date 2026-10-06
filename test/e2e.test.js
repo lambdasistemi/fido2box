@@ -14,7 +14,7 @@ function fakeKey(window) {
 }
 async function page(file, box, query = '') {
   const html = fs.readFileSync(path.join(DIR, file), 'utf8').replace('<script src="box.js"></script>', '<script>' + fs.readFileSync(path.join(DIR, 'box.js'), 'utf8') + '</script>');
-  const dom = new JSDOM(html, { runScripts: 'dangerously', url: 'http://localhost:8099/box/' + file + query, pretendToBeVisual: true,
+  const dom = new JSDOM(html, { runScripts: 'dangerously', url: 'http://localhost:8099/' + file + query, pretendToBeVisual: true,
     beforeParse(w) { Object.defineProperty(w, 'crypto', { value: nodeCrypto.webcrypto, configurable: true }); w.TextEncoder = TextEncoder; w.TextDecoder = TextDecoder; w.btoa = btoa; w.atob = atob;
       w.fetch = async () => box ? { ok: true, json: async () => box } : { ok: false };
       w.__copied = fakeKey(w); w.URL.createObjectURL = () => 'blob:x'; } });
@@ -23,53 +23,131 @@ async function page(file, box, query = '') {
 const click = (w, id) => w.document.getElementById(id).click();
 const set = (w, id, v) => { w.document.getElementById(id).value = v; };
 (async () => {
-  // ===== manager: new box, two items, one key =====
-  let w = await page('setup.html', null);
-  ok(/Rehearsal on localhost/.test(w.document.getElementById('where').textContent), 'manager shows it is a rehearsal on localhost');
-  ok(!w.document.getElementById('itemsBox').hidden, 'new box: items section is open straight away');
-  set(w, 'title', '1Password'); set(w, 'url', 'https://my.1password.com/signin'); set(w, 'secret', 'A3-TEST-SECRET'); click(w, 'addItem'); await tick(100);
-  set(w, 'title', 'Bad'); set(w, 'url', 'javascript:alert(1)'); set(w, 'secret', 'x'); click(w, 'addItem'); await tick(60);
+  const $$ = (w, s) => [...w.document.querySelectorAll(s)];
+  // ===== one page: no box yet -> create =====
+  let w = await page('index.html', null);
+  ok(!w.document.getElementById('demo').hidden, 'rehearsal banner on localhost');
+  click(w, 'go'); await tick(200);
+  ok(/Choose a box first/.test(w.document.getElementById('msg').textContent), 'nothing chosen: Unlock asks to choose a box');
+  click(w, 'newBtn'); await tick(100);
+  ok(!w.document.getElementById('manage').hidden, 'making a new box opens the editor');
+  set(w, 'name', '1Password'); set(w, 'url', 'https://my.1password.com/signin'); set(w, 'secret', 'A3-TEST-SECRET'); click(w, 'addItem'); await tick(100);
+  set(w, 'name', 'Bad'); set(w, 'url', 'javascript:alert(1)'); set(w, 'secret', 'x'); click(w, 'addItem'); await tick(60);
   ok(/web address/.test(w.document.getElementById('itemMsg').textContent), 'a javascript: address is refused');
-  set(w, 'title', 'Google'); set(w, 'url', 'https://accounts.google.com'); set(w, 'secret', 'backup-code-1'); click(w, 'addItem'); await tick(100);
-  ok(w.document.querySelectorAll('#list tr').length === 2, 'two items listed');
+  set(w, 'name', 'Google'); set(w, 'url', 'https://accounts.google.com'); set(w, 'secret', 'backup-code-1'); click(w, 'addItem'); await tick(100);
+  ok($$(w, '#list tr').length === 2, 'two items listed');
   ok(w.document.getElementById('outBox').hidden, 'no file offered until a key is added');
   set(w, 'keyName', 'hk-phone'); click(w, 'addKey'); await tick(300);
   ok(!w.document.getElementById('outBox').hidden, 'file offered once a key is added');
   const file = JSON.parse(w.document.getElementById('out').value);
   ok(file.v === 2 && file.keys.length === 1 && file.items.length === 2 && file.rpId === 'localhost', 'file: version 2, one key, two items, rpId localhost');
   ok(!JSON.stringify(file).match(/1Password|Google|A3-TEST|backup-code|accounts\.google/), 'file leaks no title, address or secret');
+  ok(!w.document.getElementById('dirty').hidden, 'edits show the not-saved banner');
   click(w, 'verify'); await tick(400);
-  ok(/opens: 2 item/.test(w.document.getElementById('verifyMsg').textContent), 'test button: opens with 2 items');
-  // ===== unlock page on that file =====
+  ok(/opens: 2 thing/.test(w.document.getElementById('verifyMsg').textContent), 'check button: opens with 2 things');
+  // ===== same page, existing box: unlock, use =====
   w = await page('index.html', file);
-  ok(!w.document.getElementById('demo').hidden, 'unlock page shows the rehearsal banner on localhost');
+  ok(w.document.getElementById('manage').hidden && w.document.getElementById('done').hidden, 'existing box: nothing shown before unlocking');
   click(w, 'go'); await tick(400);
   ok(!w.document.getElementById('done').hidden, 'Unlock reveals the items');
-  const titles = [...w.document.querySelectorAll('#items h3')].map((h) => h.textContent);
-  ok(titles.join() === '1Password,Google', 'titles shown: ' + titles.join(', '));
-  const links = [...w.document.querySelectorAll('#items a')].map((a) => a.href);
-  ok(links[0] === 'https://my.1password.com/signin' && links[1] === 'https://accounts.google.com/', 'Open links go to field 1: ' + links.join(' '));
-  ok([...w.document.querySelectorAll('#items a')].every((a) => a.rel.includes('noopener')), 'Open links are noopener');
-  [...w.document.querySelectorAll('#items button')][1].click(); await tick(60);
-  ok(w.__copied[0] === 'backup-code-1', 'Copy puts field 2 of THAT item on the clipboard');
+  ok(w.document.getElementById('manage').hidden, 'editor stays closed until asked');
+  ok($$(w, '#items h3').map((h) => h.textContent).join() === '1Password,Google', 'titles shown');
+  const links = $$(w, '#items a').map((a) => a.href);
+  ok(links[0] === 'https://my.1password.com/signin' && links[1] === 'https://accounts.google.com/', 'Open links go to the address: ' + links.join(' '));
+  ok($$(w, '#items a').every((a) => a.rel.includes('noopener')), 'Open links are noopener');
+  $$(w, '#items button')[1].click(); await tick(60);
+  ok(w.__copied[0] === 'backup-code-1', 'Copy puts the secret of THAT item on the clipboard');
   ok(!w.document.body.textContent.includes('backup-code-1') && !w.document.body.textContent.includes('A3-TEST'), 'secrets are not shown on the page');
-  // ===== Italian =====
-  w = await page('index.html', file, '?lang=it'); click(w, 'go'); await tick(400);
-  ok(w.document.getElementById('go').textContent === 'Sblocca' && /Copia il segreto/.test(w.document.body.textContent), 'Italian version works');
-  // ===== manager on the existing file: unlock, add an item and a second key, delete one =====
-  w = await page('setup.html', file);
-  ok(!w.document.getElementById('unlock').hidden && w.document.getElementById('itemsBox').hidden, 'existing box: must unlock before managing');
-  click(w, 'unlock'); await tick(400);
-  ok(w.document.querySelectorAll('#list tr').length === 2, 'unlocking lists the existing 2 items');
-  set(w, 'title', 'GitHub'); set(w, 'url', 'https://github.com/login'); set(w, 'secret', 'recovery-codes'); click(w, 'addItem'); await tick(100);
-  [...w.document.querySelectorAll('#list button')][0].click(); await tick(100);
+  // ===== edit the same session: add item, delete with confirmation, add key =====
+  click(w, 'edit'); await tick(60);
+  ok(!w.document.getElementById('manage').hidden && $$(w, '#list tr').length === 2, 'Edit opens the editor with the 2 items');
+  set(w, 'name', 'GitHub'); set(w, 'url', 'https://github.com/login'); set(w, 'secret', 'recovery-codes'); click(w, 'addItem'); await tick(100);
+  $$(w, '#list button')[0].click(); await tick(100);
+  ok($$(w, '#list tr').length === 3, 'delete: first click only asks, nothing is removed');
+  $$(w, '#list button').find((b) => /^Yes/.test(b.textContent)).click(); await tick(100);
+  ok($$(w, '#list tr').length === 2, 'delete: confirming removes it');
+  ok($$(w, '#keys button').length === 0, 'the only key cannot be removed');
   set(w, 'keyName', 'hk-bag'); click(w, 'addKey'); await tick(300);
   const file2 = JSON.parse(w.document.getElementById('out').value);
   ok(file2.keys.length === 2 && file2.items.length === 2, 'after: 2 keys, 2 items (added one, deleted one)');
+  ok($$(w, '#items h3').map((h) => h.textContent).join() === 'Google,GitHub', 'the list above follows the edits');
   w = await page('index.html', file2); click(w, 'go'); await tick(400);
-  ok([...w.document.querySelectorAll('#items h3')].map((h) => h.textContent).join() === 'Google,GitHub', 'second file opens with the right items');
-  // ===== missing box.json =====
-  w = await page('index.html', null); click(w, 'go'); await tick(200);
-  ok(/Nothing has been set up/.test(w.document.getElementById('msg').textContent), 'no box.json: friendly message');
+  ok($$(w, '#items h3').map((h) => h.textContent).join() === 'Google,GitHub', 'second file opens with the right items');
+  // ===== several boxes on the site, picked by name or by ?box= =====
+  const other = { ...file2 };
+  const served = { 'boxes/index.json': ['paolo', 'wife', '../evil'], 'boxes/paolo.json': file, 'boxes/wife.json': other };
+  const many = async (qs) => { const wd = await page('index.html', file, qs); return wd; };
+  async function pageMany(qs) {
+    const html = fs.readFileSync(path.join(DIR, 'index.html'), 'utf8').replace('<script src="box.js"></script>', '<script>' + fs.readFileSync(path.join(DIR, 'box.js'), 'utf8') + '</script>');
+    const dom = new JSDOM(html, { runScripts: 'dangerously', url: 'http://localhost:8099/' + qs, pretendToBeVisual: true,
+      beforeParse(w) { Object.defineProperty(w, 'crypto', { value: nodeCrypto.webcrypto, configurable: true }); w.TextEncoder = TextEncoder; w.TextDecoder = TextDecoder; w.btoa = btoa; w.atob = atob;
+        w.fetch = async (u) => served[u] ? { ok: true, json: async () => served[u] } : { ok: false }; w.__copied = fakeKey(w); } });
+    await tick(120); return dom.window;
+  }
+  w = await pageMany('');
+  ok($$(w, '#boxes button').map((b) => b.textContent).join() === 'paolo,wife', 'several boxes: one button per name, a bad name is dropped');
+  ok(w.document.getElementById('chosen').textContent === '', 'several boxes: none chosen until you pick');
+  $$(w, '#boxes button')[0].click(); await tick(120);
+  ok(/paolo/.test(w.document.getElementById('chosen').textContent), 'picking a name chooses that box');
+  click(w, 'go'); await tick(400);
+  ok($$(w, '#items h3').length === 2, 'the picked box unlocks');
+  w = await pageMany('?box=wife');
+  ok(/wife/.test(w.document.getElementById('chosen').textContent), '?box=name preselects that box');
+  w = await pageMany('?box=../evil');
+  ok(w.document.getElementById('chosen').textContent === '', '?box= with a path is ignored');
+  // ===== a box file from this computer =====
+  w = await page('index.html', null);
+  const pick = (wd, text) => { const f = new wd.File([text], 'mine.json'); Object.defineProperty(wd.document.getElementById('file'), 'files', { value: [f], configurable: true }); wd.document.getElementById('file').dispatchEvent(new wd.Event('change')); };
+  pick(w, 'not json'); await tick(100);
+  ok(/not a box/.test(w.document.getElementById('msg').textContent), 'a file that is not a box is refused');
+  pick(w, JSON.stringify(file)); await tick(100);
+  ok(/mine\.json/.test(w.document.getElementById('chosen').textContent), 'a box file from the computer is chosen');
+  click(w, 'go'); await tick(400);
+  ok($$(w, '#items h3').map((h) => h.textContent).join() === '1Password,Google', 'the uploaded box unlocks');
+  // ===== revision numbers, download a copy, comparing a local file with the website's =====
+  ok(file.rev === 1 && file2.rev === 2, 'rev goes up by one per edited save: ' + file.rev + ' then ' + file2.rev);
+  const site = { ...file, rev: 2 };
+  async function pageSite(serverBox, local) {
+    const html = fs.readFileSync(path.join(DIR, 'index.html'), 'utf8').replace(/<meta name="box-repo"[^>]*>/, '').replace('<script src="box.js"></script>', '<script>' + fs.readFileSync(path.join(DIR, 'box.js'), 'utf8') + '</script>');
+    let saved = null;
+    const dom = new JSDOM(html, { runScripts: 'dangerously', url: 'http://localhost:8099/', pretendToBeVisual: true,
+      beforeParse(w) { Object.defineProperty(w, 'crypto', { value: nodeCrypto.webcrypto, configurable: true }); w.TextEncoder = TextEncoder; w.TextDecoder = TextDecoder; w.btoa = btoa; w.atob = atob;
+        w.fetch = async (u) => (serverBox && u === 'box.json') ? { ok: true, json: async () => serverBox } : { ok: false }; w.__copied = fakeKey(w);
+        w.URL.createObjectURL = (b) => { saved = b; return 'blob:x'; }; } });
+    await tick(120); const w = dom.window;
+    if (local) { const f = new w.File([JSON.stringify(local)], 'box.json'); Object.defineProperty(w.document.getElementById('file'), 'files', { value: [f], configurable: true }); w.document.getElementById('file').dispatchEvent(new w.Event('change')); await tick(150); }
+    return { w, saved: () => saved };
+  }
+  let r = await pageSite(site, { ...file, rev: 1 });
+  ok(/OLDER/.test(r.w.document.getElementById('sync').textContent), 'a local file with a lower rev is flagged OLDER than the site');
+  r = await pageSite(site, { ...file, rev: 3 });
+  ok(/Newer/.test(r.w.document.getElementById('sync').textContent), 'a local file with a higher rev is flagged newer');
+  r = await pageSite(site, site);
+  ok(/Same/.test(r.w.document.getElementById('sync').textContent), 'an identical local file is flagged the same');
+  r = await pageSite(null, file);
+  ok(/No copy/.test(r.w.document.getElementById('sync').textContent), 'no copy on the site is said plainly');
+  ok(!r.w.document.getElementById('copyBtn').hidden, 'the download-a-copy button appears once a box is chosen');
+  r.w.document.getElementById('copyBtn').click();
+  const txt = await new Promise((ok2) => { const fr = new r.w.FileReader(); fr.onload = () => ok2(fr.result); fr.readAsText(r.saved()); });
+  ok(JSON.stringify(JSON.parse(txt)) === JSON.stringify(file), 'the downloaded copy is the same box, without unlocking');
+  // ===== a box repository is configured: links to it, nothing to compare with on the site =====
+  w = await page('index.html', null, '?repo=paolino/fido-box');
+  ok(w.document.getElementById('repoGet').href === 'https://github.com/paolino/fido-box/blob/main/box.json' && !w.document.getElementById('repoGet').hidden, 'link to the box in the repository');
+  click(w, 'newBtn'); await tick(100);
+  set(w, 'name', 'X'); set(w, 'url', 'https://example.org'); set(w, 'secret', 's'); click(w, 'addItem'); await tick(100);
+  set(w, 'keyName', 'k1'); click(w, 'addKey'); await tick(300);
+  ok(w.document.getElementById('repoPut').href === 'https://github.com/paolino/fido-box/upload/main' && !w.document.getElementById('repoPut').hidden, 'save step links to the repository upload page');
+  // ===== the repository is a field: typed, validated, remembered =====
+  w = await page('index.html', null);
+  ok(w.document.getElementById('repoGet').hidden, 'no repository given: no GitHub links');
+  const typeRepo = (wd, v) => { set(wd, 'repo', v); wd.document.getElementById('repo').dispatchEvent(new wd.Event('input')); };
+  typeRepo(w, 'not a repo'); ok(w.document.getElementById('repoGet').hidden, 'an invalid repository name shows no links');
+  typeRepo(w, '../../evil'); ok(w.document.getElementById('repoGet').hidden, 'a path trick is not a repository name');
+  typeRepo(w, 'someone/their-box');
+  ok(w.document.getElementById('repoGet').href === 'https://github.com/someone/their-box/blob/main/box.json', 'a typed owner/name becomes the link');
+  ok(w.localStorage.getItem('box-repo') === 'someone/their-box', 'a valid name is remembered in the browser');
+  // ===== Italian =====
+  w = await page('index.html', file, '?lang=it'); click(w, 'go'); await tick(400);
+  ok(w.document.getElementById('title').textContent === 'Recupera i tuoi segreti' && /Copia il segreto/.test(w.document.body.textContent), 'Italian version works');
   console.log('\n' + (n - fails) + '/' + n + ' passed'); process.exit(fails ? 1 : 0);
 })().catch((e) => { console.error('ERROR', e); process.exit(2); });

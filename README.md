@@ -18,11 +18,12 @@ Details and limits: [AUDIT.md](AUDIT.md).
 ## Use it
 
 1. Host the `web/` folder over **https** at the address you will always use. A key's lock is tied to the page's host name (or to a `<meta name="rp-id" content="example.org">` you set), so enrol the keys on the final address.
-2. Open `setup.html`, **add items**, **add a key** (PIN and touch, twice), **download `box.json`** and publish it next to the pages.
-3. From then on `index.html` is the button you give to someone.
-4. `?lang=it` shows Italian.
+2. Open `index.html`, press **Make a new box**, **add items**, **add a key** (PIN and touch, twice) and **save the box**: you get a file. A box is just that one locked file.
+3. Where the file lives is up to you. Put it on the site as `boxes/NAME.json` (list the names in `boxes/index.json`, e.g. `["paolo","wife"]`), or keep it anywhere and open it from the page with **Open a box file from this computer** (it is read in the browser and never sent). `?box=NAME` preselects a box on the site.
+4. From then on `index.html` is the button you give to someone.
+5. `?lang=it` shows Italian.
 
-Add more keys later: open `setup.html`, unlock with a key already in the box, add the new one, publish the new file.
+Add more keys later: open `index.html`, unlock with a key already in the box, press **Edit this box**, add the new one, save the box and replace the old file.
 
 Rehearse on `http://localhost` first: keys added there do not work on your real address.
 
@@ -50,3 +51,13 @@ The run-time code has no dependencies: `web/box.js` and the two pages use only b
 ## Licence
 
 Apache-2.0.
+
+## Keeping the box safe
+
+The box file is the one thing you cannot recreate. The page and the server can always be rebuilt from this repository: if the server is lost, point the same domain at a new one, deploy `web/`, and put the box file back. Keep copies of the file: **Download a copy of this box** is available as soon as a box is chosen, without unlocking. Every saved edit raises the box's `rev`; when you open a file from your computer the page tells you whether it is the same as, newer than, or older than the website's copy. The domain itself cannot be replaced: keys are enrolled for it.
+
+The repository that holds your box file (for example `owner/fido-box`, private) is a field on the page. It is remembered in this browser, or given in the link: `https://your.site/?repo=owner/fido-box`. The repository name is not secret.
+
+## Deployment
+
+`.github/workflows/pages.yml` publishes `web/` to GitHub Pages on every push to `main`. It adds `COMMIT` and `SHA256SUMS` (the hash of every served file) and signs a provenance attestation for `SHA256SUMS`. `scripts/verify.sh https://fido2box.dev` checks that the live files match the signed list and the files in that commit; `.github/workflows/verify.yml` runs it every week. `web/config.js` sets the default box repository for this deployment.
