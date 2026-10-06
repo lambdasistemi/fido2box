@@ -15,53 +15,29 @@ It was made for "I lost every device: how do I get back into my password manager
 
 Details and limits: [AUDIT.md](AUDIT.md).
 
-## Use it
+## The app
 
-1. Host the `web/` folder over **https** at the address you will always use. A key's lock is tied to the page's host name (or to a `<meta name="rp-id" content="example.org">` you set), so enrol the keys on the final address.
-2. Open `index.html`, press **Make a new box**, **add items**, **add a key** (PIN and touch, twice) and **save the box**: you get a file. A box is just that one locked file.
-3. Where the file lives is up to you. Put it on the site as `boxes/NAME.json` (list the names in `boxes/index.json`, e.g. `["paolo","wife"]`), or keep it anywhere and open it from the page with **Open a box file from this computer** (it is read in the browser and never sent). `?box=NAME` preselects a box on the site.
-4. From then on `index.html` is the button you give to someone.
-5. `?lang=it` shows Italian.
+A single-page app for managing locked **boxes**. A box is one file holding items and the keys that open it.
 
-Add more keys later: open `index.html`, unlock with a key already in the box, press **Edit this box**, add the new one, save the box and replace the old file.
+- **Boxes:** the boxes in this browser (kept in IndexedDB, locked) and in a GitHub repository (`boxes/NAME.json`), with a status for each: in sync, ahead of GitHub, behind GitHub, only here, only on GitHub. New box, import a file.
+- **A box:** *Items* (unlock with a key, then add, open, copy, delete), *Keys* (add, remove, detect which one is inserted), *Sync* (push, pull, download, delete from this browser).
+- **Keys:** every key across your boxes, and which boxes it opens. A web page cannot see which key is plugged in until you touch it, so *Detect* asks the key to sign and matches the answer.
+- **Settings:** the box repository (`owner/name`, remembered in this browser; `?repo=` also works) and an optional GitHub token for this session.
 
-Rehearse on `http://localhost` first: keys added there do not work on your real address.
+Every change to a box raises its `rev` and is saved in the browser at once. Nothing reaches GitHub until you press **Push**. Push refuses to overwrite a version with the same or a higher `rev`, and Pull asks first when your copy is newer. A GitHub token limited to the box repository (Contents: read and write) is kept as an item inside the box, so unlocking the box is what lets the app talk to GitHub; it is never shown. Fine-grained tokens expire, so renew it when GitHub refuses it.
 
-## What you give up (read this)
+Removing a key does not revoke it: anyone who ever had it can still open older copies of the box. To revoke, make a new box.
 
-- **The host you serve it from is trusted at the moment you use it.** The page's code runs in your browser and sees the decrypted secrets. Whoever can change the files on that server could change the code. HTTPS protects the transit, not a compromised server.
-- **Anyone holding one enrolled key and its PIN can open the box.** Eight wrong PINs wipe most keys, but that is a property of the key, not of this code. There is no password: the key and its PIN are the whole protection.
-- **No revocation.** Removing a key from the file does not change the data key. If a key is lost, make a new box and re-enrol the keys you still have.
-- The number of items and the key credential ids are visible in the public file.
+Rehearse on `http://localhost`: keys made there do not work on your real address.
 
-## Support
+## Keeping the boxes safe
 
-- Needs a browser with WebAuthn PRF and a key with hmac-secret: Chrome and Edge on desktop; Firefox on Linux (tested 157). Firefox on macOS is reported broken. Windows 10 is reported problematic. Many security keys qualify (tested: Token2 PIN+ Release 3.3).
-- **Tested**: unit tests of the crypto with simulated keys, and end-to-end tests of the real pages in jsdom with a simulated key (`npm test`); manual runs with a real key in Chrome and Firefox on Ubuntu.
-- **Not tested**: macOS, Windows, Safari, Android.
-- **Not independently audited.** Do not make it your only way back into anything that matters.
-
-## Develop
-
-    npm install
-    npm test
-
-The run-time code has no dependencies: `web/box.js` and the two pages use only built-in browser APIs (Web Crypto, WebAuthn, fetch, clipboard). `jsdom` is used only by the tests.
-
-## Licence
-
-Apache-2.0.
-
-## Keeping the box safe
-
-The box file is the one thing you cannot recreate. The page and the server can always be rebuilt from this repository: if the server is lost, point the same domain at a new one, deploy `web/`, and put the box file back. Keep copies of the file: **Download a copy of this box** is available as soon as a box is chosen, without unlocking. Every saved edit raises the box's `rev`; when you open a file from your computer the page tells you whether it is the same as, newer than, or older than the website's copy. The domain itself cannot be replaced: keys are enrolled for it.
-
-The repository that holds your box file (for example `owner/fido-box`, private) is a field on the page. It is remembered in this browser, or given in the link: `https://your.site/?repo=owner/fido-box`. The repository name is not secret.
+A box file is the one thing you cannot recreate. The app and the site can always be rebuilt from this repository: if the site is lost, point the domain at a new host, deploy `web/`, and import your box. Keep boxes in GitHub (private repository) and download a copy of the ones you cannot lose. The domain cannot be replaced: keys are enrolled for it, so keep it renewed.
 
 ## Deployment
 
-`.github/workflows/pages.yml` publishes `web/` to GitHub Pages on every push to `main`. It adds `COMMIT` and `SHA256SUMS` (the hash of every served file) and signs a provenance attestation for `SHA256SUMS`. `scripts/verify.sh https://fido2box.dev` checks that the live files match the signed list and the files in that commit; `.github/workflows/verify.yml` runs it every week. `web/config.js` sets the default box repository for this deployment.
+`.github/workflows/pages.yml` publishes `web/` to GitHub Pages on every push to `main`. It adds `COMMIT` and `SHA256SUMS` (the hash of every served file) and signs a provenance attestation for `SHA256SUMS`. `scripts/verify.sh https://fido2box.dev` checks that the live files match the signed list and the files in that commit; `.github/workflows/verify.yml` runs it every week. `web/config.js` sets the default box repository for this deployment. The code has no build step: the files in `web/` are what is served.
 
-## Saving to GitHub
+## Tests
 
-With a repository set, the editor can save the box itself: **Save to GitHub** writes `box.json` in that repository with one commit, through the GitHub API. It needs a fine-grained token limited to that one repository (Contents: read and write). The token is kept as an item inside the box, so unlocking the box is what lets the page save; it is never shown and is sent only to `api.github.com`. It refuses to overwrite a box whose `rev` is the same or higher. Fine-grained tokens expire (at most a year): when GitHub refuses the token, make a new one and replace it in the editor. The downloaded file and the upload page remain as fallbacks.
+`npm test` runs unit checks of the crypto and the GitHub helpers, then drives the real app in headless Chrome with a virtual security key (WebAuthn with PRF), IndexedDB and a fake GitHub. It needs Chrome or Chromium on the path, and is skipped without it.

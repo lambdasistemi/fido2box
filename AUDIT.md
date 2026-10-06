@@ -7,7 +7,7 @@ Status: **not independently reviewed.** These notes exist to make a review quick
 1. Without an enrolled key (and its PIN), the public file reveals no title, address or secret.
 2. A modified file is rejected, not silently accepted.
 3. Only `https://` addresses (and `http://localhost` for rehearsal) can be opened.
-4. Secrets are not shown on the page and leave it only through the clipboard, which is cleared after 60 seconds.
+4. Secrets are not shown on the page. They leave it only through the clipboard. The app tries to clear the clipboard after 60 seconds, but only when the clipboard still holds that secret and the page can reach it; browsers refuse clipboard access to a page that is not focused, so the clear can fail (the app says so). Clear it yourself when in doubt.
 
 Each one has a test in `test/` (see the names there).
 
@@ -38,7 +38,7 @@ Browser part: `prfFor` (ask the key) and `createCredential` (enrol). `userVerifi
 - **No associated data (AAD)** in the AES-GCM calls. Items and wrapped keys are not bound to their position or to the file. An attacker who can rewrite the file can reorder or drop items (not read or forge them).
 - **Constant PRF salt** and **zero HKDF salt**: acceptable because the PRF output is already a per-credential secret, but worth a second opinion.
 - **One data key for all items**, with random 96-bit IVs: fine for a handful of items, not a design for thousands.
-- **Trust in the server at use time.** No Subresource Integrity (the code is one origin), no Content-Security-Policy is shipped. Serving the pages with `Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'` is a sensible hardening (the pages use inline scripts).
+- **Trust in the server at use time.** No Subresource Integrity (the code is one origin). A Content-Security-Policy is set by a meta tag (scripts and styles only from the page's own origin, connections only to api.github.com, no framing control because a meta tag cannot set it). Any page served from the same host can still ask your key for the unlock secret, so serve the app from a host that serves nothing else.
 - **No key revocation** (see README).
 - **Clipboard**: any other program able to read the clipboard during the minute sees the secret.
 - **Browser and key bugs** (PRF support varies) are outside this code.
@@ -47,4 +47,4 @@ Browser part: `prfFor` (ask the key) and `createCredential` (enrol). `userVerifi
 
     npm install && npm test
 
-10 unit checks of the crypto with simulated keys and 22 end-to-end checks of the real pages. The real key's prompt is the one thing they cannot exercise.
+Unit checks of the crypto and the GitHub helpers with simulated keys, and checks that drive the real app in headless Chrome with a virtual security key (WebAuthn with PRF), IndexedDB and a fake GitHub. The real key's prompt and the real GitHub are the things they cannot exercise.

@@ -92,5 +92,22 @@ const prf = (s) => B.enc.encode(s.padEnd(32, '.')).slice(0, 32);       // a fake
     const big = new Uint8Array(300000).map((_, i) => i % 251); assert.deepStrictEqual(B.unb64(B.b64(big)), big);
     ok('base64 handles a 300 KB file');
   }
+  // 10. listing and fetching boxes in the repository
+  {
+    const res = (status, body) => ({ status, ok: status === 200, json: async () => body });
+    const urls = [];
+    const f = (map) => async (u) => { urls.push(u); return map[u.replace('https://api.github.com/repos/o/r', '')] || res(404, {}); };
+    const dir = res(200, [{ type: 'file', name: 'paolo.json' }, { type: 'file', name: 'notes.txt' }, { type: 'dir', name: 'x' }, { type: 'file', name: '../evil.json' }, { type: 'file', name: 'wife.json' }]);
+    assert.deepStrictEqual(await B.listRemote('o/r', 't', f({ '/contents/boxes': dir })), ['paolo', 'wife']); ok('list: only well-named .json files are boxes');
+    assert.deepStrictEqual(await B.listRemote('o/r', 't', f({ '': res(200, {}) })), []); ok('list: a repository with no boxes folder is an empty list');
+    let e = null; try { await B.listRemote('o/r', 't', f({})); } catch (x) { e = x; } assert.strictEqual(e && e.name, 'NoRepo'); ok('list: an unreachable repository is told apart');
+    e = null; try { await B.listRemote('o/r', 't', f({ '/contents/boxes': res(401, {}) })); } catch (x) { e = x; } assert.strictEqual(e && e.name, 'BadToken'); ok('list: a refused token is told apart');
+    const box = { v: 2, rev: 4, keys: [], items: [] };
+    const got = await B.fetchRemote('o/r', 't', 'paolo', f({ '/contents/boxes/paolo.json': res(200, { content: Buffer.from(JSON.stringify(box)).toString('base64') }) }));
+    assert.deepStrictEqual(got, box); assert.strictEqual(await B.fetchRemote('o/r', 't', 'zzz', f({})), null); ok('fetch: a box is read and parsed; a missing one is null');
+    const calls = []; await B.saveToGitHub('o/r', 't', '{"rev":1}', 1, async (u, o = {}) => { calls.push(u); return o.method ? { status: 201, ok: true, json: async () => ({ commit: { sha: 'abcdef0' } }) } : { status: 404, ok: false, json: async () => ({}) }; }, 'boxes/paolo.json');
+    assert.ok(calls.every((u) => u.endsWith('/contents/boxes/paolo.json'))); ok('save: writes to the path it is given');
+    assert.ok(B.NAME_RE.test('paolo_2-b') && !B.NAME_RE.test('a/b') && !B.NAME_RE.test('') && !B.NAME_RE.test('x'.repeat(41))); ok('box names: letters, digits, - and _, up to 40');
+  }
   console.log('\n' + n + ' checks passed');
 })().catch((e) => { console.error('FAILED:', e.message); process.exit(1); });
