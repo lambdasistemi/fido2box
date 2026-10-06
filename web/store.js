@@ -4,6 +4,7 @@
 /** @typedef {import('./crypto.js').Box} Box */
 /** @typedef {{ name: string, box: Box, savedAt: number }} Record */
 
+// The database keeps its first name on purpose: renaming it would hide the boxes already stored in people's browsers.
 const LIB_DB = 'recover-box', LIB_STORE = 'boxes';
 /** @returns {Promise<IDBDatabase>} */
 function libOpen() {

@@ -275,4 +275,4 @@ document.getElementById('where').textContent = RP === 'localhost' ? 'rehearsal o
 window.addEventListener('hashchange', () => { S.confirm = ''; render(); });
 reload().then(render).catch((e) => { $app.textContent = 'This browser cannot keep a library of boxes: ' + e.message; });
 // which commit of the code is being served (the deployment writes COMMIT next to the app)
-fetch('COMMIT', { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')).then((t) => { const sha = t.trim(); if (/^[0-9a-f]{40}$/.test(sha)) { const a = document.getElementById('commitLink'); a.textContent = sha.slice(0, 7); a.href = 'https://github.com/lambdasistemi/recover-box/commit/' + sha; a.hidden = false; } }).catch(() => {});
+fetch('COMMIT', { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')).then((t) => { const sha = t.trim(); if (/^[0-9a-f]{40}$/.test(sha)) { const a = document.getElementById('commitLink'); a.textContent = sha.slice(0, 7); a.href = 'https://github.com/lambdasistemi/fido2box/commit/' + sha; a.hidden = false; } }).catch(() => {});
