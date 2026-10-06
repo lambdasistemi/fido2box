@@ -86,6 +86,8 @@ const confirmBtn = (key, label, doIt, cls) => S.confirm === key
   ? h('span', null, h('button', { class: 'danger', on: { click: act(async () => { S.confirm = ''; await doIt(); }) } }, 'Yes, ' + label.toLowerCase()), ' ', h('button', { on: { click: () => { S.confirm = ''; render(); } } }, 'Keep'))
   : h('button', { class: cls || '', on: { click: () => { S.confirm = key; render(); } } }, label);
 const chip = (t, c) => (t ? h('span', { class: 'chip ' + (c || '') }, t) : null);
+const ghUrl = (p) => (REPO_RE.test(S.repo) ? 'https://github.com/' + S.repo + '/' + p : '');
+const ghLink = (text, p, cls) => (ghUrl(p) ? h('a', { class: cls || '', href: ghUrl(p), target: '_blank', rel: 'noopener noreferrer', on: { click: (e) => e.stopPropagation() } }, text) : null);
 
 // ---------- naming the key you are about to add ----------
 // The keys this browser already knows about: those listed in any box, by credential.
@@ -133,7 +135,7 @@ function boxesView() {
   const rows = names.map((n) => { const l = local(n), r = S.remote && S.remote[n], st = sync(l && l.box, r), b = (l && l.box) || r;
     return h('tr', { class: 'click', on: { click: () => { location.hash = '#/box/' + encodeURIComponent(n); } } },
       h('td', null, h('strong', null, n), ' ', S.unlocked[n] ? chip('unlocked', 'live') : null),
-      h('td', null, l ? chip('this browser') : null, r ? chip('GitHub') : null),
+      h('td', null, l ? chip('this browser') : null, r ? ghLink('GitHub ↗', 'blob/main/boxes/' + n + '.json', 'chip') : null),
       h('td', null, String(keysOf(b).length)), h('td', null, 'rev ' + (b.rev || 0)), h('td', null, chip(st.t, st.c))); });
   return h('div', null,
     h('div', { class: 'row sp' }, h('h1', null, 'Boxes'), h('div', { class: 'row' },
@@ -142,7 +144,7 @@ function boxesView() {
       h('button', { id: 'refreshBtn', on: { click: act(async () => { await refreshRemote(); if (S.remote) say('GitHub: ' + Object.keys(S.remote).length + ' box(es).'); else say(S.remoteErr, true); }) } }, 'Refresh GitHub'))),
     h('p', { class: 'muted small', id: 'intro' }, 'A box is one locked file that holds your items. Your security keys, the hardware keys you plug in, open it: any one of them is enough.'),
     file, form,
-    h('p', { class: 'muted small', id: 'ghLine' }, S.remote ? 'GitHub: ' + S.repo + ', ' + Object.keys(S.remote).length + ' box(es).' : (S.remoteErr || 'GitHub: not checked.')),
+    h('p', { class: 'muted small', id: 'ghLine' }, S.remote ? ['GitHub: ', ghLink(S.repo, 'tree/main/boxes'), ', ' + Object.keys(S.remote).length + ' box(es).'] : [S.remoteErr || 'GitHub: not checked.', ghUrl('tree/main/boxes') ? [' ', ghLink('Open the repository ↗', 'tree/main/boxes')] : null]),
     names.length ? h('div', { class: 'card' }, h('table', null, h('tr', null, h('th', null, 'Name'), h('th', null, 'Where'), h('th', null, 'Security keys'), h('th', null, 'Version'), h('th', null, 'Status')), rows))
       : h('div', { class: 'card empty', id: 'emptyBoxes' }, h('p', null, 'No boxes yet.'), h('p', { class: 'small' }, 'Make a new one, or import a box file. If you are recovering, download your box file from ', REPO_RE.test(S.repo) ? h('a', { href: 'https://github.com/' + S.repo + '/tree/main/boxes', target: '_blank', rel: 'noopener noreferrer' }, S.repo) : 'your repository on GitHub', ' (log in with your key) and import it here.')));
 }
@@ -216,6 +218,7 @@ function syncTab(name, rec, rem) {
   const path = 'boxes/' + name + '.json';
   return h('div', null, connectCard(name), h('div', { class: 'card' },
     h('table', null, h('tr', null, h('td', null, 'This browser'), h('td', null, rec ? 'rev ' + (rec.box.rev || 0) : '—')), h('tr', null, h('td', null, 'GitHub ' + (REPO_RE.test(S.repo) ? S.repo : '')), h('td', null, rem ? 'rev ' + (rem.rev || 0) : (S.remote ? 'not there' : 'not checked'))), h('tr', null, h('td', null, 'Status'), h('td', null, chip(st.t, st.c) || '—'))),
+    ghUrl('boxes') ? h('p', { class: 'small', id: 'ghLinks' }, ghLink('Open on GitHub ↗', 'blob/main/boxes/' + name + '.json'), ' · ', ghLink('History ↗', 'commits/main/boxes/' + name + '.json'), ' · ', ghLink('Upload a file ↗', 'upload/main/boxes')) : null,
     h('div', { class: 'row' },
       h('button', { class: 'primary', id: 'pushBtn', disabled: !rec || !canGh, on: { click: act(async () => { let sha; try { sha = await saveToGitHub(S.repo, tok, JSON.stringify(rec.box, null, 2), rec.box.rev || 0, undefined, path); } catch (e) { if (e.name === 'RemoteNewer') { await refreshRemote(); render(); } throw e; } await refreshRemote(); say(sha === 'unchanged' ? 'GitHub already has exactly this box.' : 'Saved to GitHub (commit ' + sha.slice(0, 7) + ').'); }) } }, 'Push to GitHub'),
       h('button', { id: 'pullBtn', disabled: !rem || !tok, on: { click: act(async () => { const fresh = await fetchRemote(S.repo, tok, name); if (!fresh) throw new Error('That box is no longer on GitHub.'); const l = rec && rec.box; if (l && (l.rev || 0) > (fresh.rev || 0) && S.confirm !== 'pull') { S.confirm = 'pull'; say('Your copy here is newer than GitHub. Press Pull again to replace it.', true); return; } S.confirm = ''; await lib.put(name, fresh); await reload(); if (S.remote) S.remote[name] = fresh; say('Pulled rev ' + (fresh.rev || 0) + '.'); }) } }, 'Pull from GitHub'),

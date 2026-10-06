@@ -174,6 +174,7 @@ async function main() {
     ok(await run(`!${q('#pushBtn')}.disabled`), 'with the token available, Push is enabled');
     await click('#testGh'); await sleep(700);
     ok(/Connected: 0 box/.test(await run(`${q('#connState')}.textContent`)), 'Test the connection reports the boxes on GitHub');
+    ok((await run(`[...document.querySelectorAll('#ghLinks a')].map((a) => a.href).join(' ')`)) === 'https://github.com/paolino/fido-box/blob/main/boxes/two.json https://github.com/paolino/fido-box/commits/main/boxes/two.json https://github.com/paolino/fido-box/upload/main/boxes', 'the Sync tab links to the box on GitHub, its history, and the upload page');
     await click('#pushBtn'); await sleep(800);
     const gh = await run('JSON.stringify(window.__gh)'); const g = JSON.parse(gh);
     ok(g.puts.length === 1 && g.puts[0].path === 'boxes/two.json' && g.puts[0].message === 'box rev 3' && g.auth.every((a) => a === 'Bearer ghp_FAKE'), 'Push writes boxes/two.json with one commit, using the token from the box');
@@ -187,6 +188,7 @@ async function main() {
     await open('#/box/two'); await click('#unlockBtn'); await until(`!!${q('#lockBtn')}`); await seed('two');
     await run(`location.hash = '#/'`); await sleep(300); await click('#refreshBtn'); await sleep(800);
     ok(await has('in sync'), 'Refresh GitHub: the same box in both places is "in sync"');
+    ok((await run(`[...document.querySelectorAll('a.chip')].map((a) => a.href).join(' ')`)).includes('https://github.com/paolino/fido-box/blob/main/boxes/two.json') && (await run(`${q('#ghLine a')}.href`)) === 'https://github.com/paolino/fido-box/tree/main/boxes', 'the Boxes list links each GitHub box to its file, and the repository line to the folder');
     await run(`location.hash = '#/box/two'`); await sleep(300); await fill('#iName', 'Later'); await fill('#iUrl', 'https://example.net'); await fill('#iSecret', 's2'); await click('#addItem'); await sleep(500);
     await run(`location.hash = '#/'`); await sleep(300);
     ok(await has('ahead of GitHub'), 'a local change makes it "ahead of GitHub"');
