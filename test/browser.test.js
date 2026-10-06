@@ -214,9 +214,19 @@ async function main() {
     await btn('Yes, delete from this browser'); await sleep(600);
     ok(!(await run(`lib.get('imp')`)) && !!g.files, 'confirming deletes only the local copy');
     // a key without PRF is reported as unusable for boxes
-    await send('WebAuthn.removeVirtualAuthenticator', { authenticatorId: key3.authenticatorId }); await auth({ hasPrf: false });
+    await send('WebAuthn.removeVirtualAuthenticator', { authenticatorId: key3.authenticatorId }); const noPrf = await auth({ hasPrf: false });
     await open('#/keys'); await click('#testKey'); await until(`!!${q('#probeResult')}`);
     ok(await has('PRF / hmac-secret): NO'), 'a key without PRF is reported as unable to hold a box key');
+    // ===== a name written on the key itself =====
+    await send('WebAuthn.removeVirtualAuthenticator', { authenticatorId: noPrf.authenticatorId }); await auth({ hasResidentKey: true });
+    await open('#/keys'); await click('#whoBtn'); await until(`!!${q('#whoResult')}`);
+    ok(await has('No label found on this key'), 'a key with no label says so');
+    await fill('#labelName', 'hk-bag'); await click('#labelBtn'); await until(`document.querySelector('#status').textContent.includes('written on the key')`);
+    ok(true, 'writing a label stores it on the key (PIN, touch)');
+    await click('#whoBtn'); await until(`document.body.innerText.includes('This key says: "hk-bag"')`);
+    ok(await has('This key says: "hk-bag"'), '"Who is this?" reads the label back from the key');
+    await open('#/'); await click('#newBtn'); await sleep(250); await click('#newKeyLabel'); await until(`${q('#newKey')}.value === 'hk-bag'`);
+    ok((await run(`${q('#newKey')}.value`)) === 'hk-bag', 'the New box form can fill the key name from its label');
   } finally { try { ws.close(); } catch (e) {} proc.kill(); server.close(); try { fs.rmSync(profile, { recursive: true, force: true }); } catch (e) {} }
   ok(pageErrors.length === 0, 'no uncaught page errors' + (pageErrors.length ? ': ' + pageErrors[0] : ''));
   console.log('\n' + (n - fails) + '/' + n + ' passed'); process.exit(fails ? 1 : 0);

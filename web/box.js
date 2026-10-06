@@ -171,10 +171,28 @@ async function probeKey() {
   const ext = cred.getClientExtensionResults(), ad = cred.response.getAuthenticatorData ? new Uint8Array(cred.response.getAuthenticatorData()) : null;
   return { answered: true, prf: !!(ext.prf && ext.prf.enabled), pin: ad ? !!(ad[32] & 0x04) : null, transports: cred.response.getTransports ? cred.response.getTransports() : [] };
 }
+// A name written on the key itself: a discoverable credential whose user handle is the name. Only this site can read it back.
+// Writing the same name again replaces it; a different name is stored next to it. Needs the key's PIN, and one of its free slots.
+async function writeLabel(label) {
+  const id = enc.encode(label || '');
+  if (!id.length || id.length > 64) throw new Error('A label is 1 to 64 characters.');
+  try {
+    await navigator.credentials.create({ publicKey: { rp: { name: 'Recover box', id: RP }, timeout: 60000,
+      user: { id, name: label, displayName: label }, challenge: crypto.getRandomValues(new Uint8Array(32)),
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+      authenticatorSelection: { residentKey: 'required', requireResidentKey: true, userVerification: 'required' } } });
+  } catch (e) { throw Object.assign(new Error('Writing the label failed: ' + (e.name || 'error') + (e.message ? ' (' + e.message + ')' : '')), { original: e.name }); }
+}
+async function readLabel() {
+  let a;
+  try { a = await navigator.credentials.get({ publicKey: { challenge: crypto.getRandomValues(new Uint8Array(32)), rpId: RP, userVerification: 'required', timeout: 60000 } }); }
+  catch (e) { throw Object.assign(new Error('Reading the label failed: ' + (e.name || 'error') + (e.message ? ' (' + e.message + ')' : '')), { original: e.name }); }
+  const h2 = a.response.userHandle; return h2 && h2.byteLength ? dec.decode(h2) : '';
+}
 function niceError(e, L) {
   const n = e && e.name;
   if (n === 'NotAllowedError' || n === 'AbortError') return L.e_cancel;
   if (n === 'NoPrf' || n === 'NotSupportedError' || n === 'SecurityError') return L.e_nokey;
   return L.e_other + ((e && (e.message || n)) || '');
 }
-if (typeof module !== 'undefined') module.exports = { wrapDataKey, unwrapDataKey, encryptItem, decryptItem, parseItem, listItems, emptyVault, addKeyEntry, addItem, upgrade, safeUrl, newDataKey, keysOf, b64, unb64, enc, saveToGitHub, TOKEN_TITLE, listRemote, fetchRemote, NAME_RE, probeKey };
+if (typeof module !== 'undefined') module.exports = { wrapDataKey, unwrapDataKey, encryptItem, decryptItem, parseItem, listItems, emptyVault, addKeyEntry, addItem, upgrade, safeUrl, newDataKey, keysOf, b64, unb64, enc, saveToGitHub, TOKEN_TITLE, listRemote, fetchRemote, NAME_RE, probeKey, writeLabel, readLabel };
