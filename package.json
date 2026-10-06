@@ -1,0 +1,9 @@
+{
+  "name": "recover-box",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Keep a few secrets behind a hardware key (FIDO2). Static files, no dependencies at run time.",
+  "license": "Apache-2.0",
+  "scripts": { "test": "node test/box.test.js && node test/e2e.test.js" },
+  "devDependencies": { "jsdom": "^26.0.0" }
+}

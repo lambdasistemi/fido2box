@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Recover box</title>
+<style>
+  :root { color-scheme: light dark; --fg:#1b1b1f; --bg:#f6f7fb; --card:#fff; --muted:#5f6368; --accent:#1a73e8; --ok:#137333; --bad:#b3261e; --line:#dadce0; --demo:#fef7e0; }
+  @media (prefers-color-scheme: dark) { :root { --fg:#e8eaed; --bg:#16171a; --card:#202124; --muted:#9aa0a6; --accent:#8ab4f8; --ok:#81c995; --bad:#f28b82; --line:#3c4043; --demo:#3b3320; } }
+  * { box-sizing: border-box; }
+  body { font: 20px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--fg); margin: 0; padding: 16px; }
+  main { max-width: 34rem; margin: 1rem auto 3rem; }
+  .demo { background: var(--demo); border-radius: 10px; padding: .6rem .9rem; font-size: .8rem; margin-bottom: 1rem; }
+  h1 { font-size: 1.6rem; margin: .2rem 0 1rem; }
+  .step { display: flex; gap: 1rem; align-items: flex-start; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 1.1rem 1.2rem; margin-bottom: 1rem; }
+  .n { flex: none; width: 2.2rem; height: 2.2rem; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 700; }
+  .step p { margin: .1rem 0 .6rem; }
+  .hint { color: var(--muted); font-size: .85rem; margin: 0; }
+  button.big, a.big { display: inline-block; font: inherit; font-weight: 600; padding: .85rem 1.3rem; border-radius: 12px; border: 0; background: var(--accent); color: #fff; cursor: pointer; text-decoration: none; }
+  a.big.quiet, button.big.quiet { background: transparent; border: 2px solid var(--accent); color: var(--accent); padding: .75rem 1.2rem; }
+  button.big[disabled] { opacity: .5; cursor: default; }
+  #msg { min-height: 1.6em; margin-top: .6rem; }
+  .ok { color: var(--ok); font-weight: 600; } .bad { color: var(--bad); }
+  .item { border-top: 1px solid var(--line); padding: .9rem 0; } .item:first-child { border-top: 0; padding-top: 0; }
+  .item h3 { margin: 0 0 .5rem; font-size: 1.15rem; }
+  .row { display: flex; flex-wrap: wrap; gap: .7rem; }
+  footer { color: var(--muted); font-size: .8rem; margin-top: 2rem; }
+  footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div class="demo" id="demo" hidden></div>
+  <h1 id="title"></h1>
+
+  <div class="step">
+    <div class="n">1</div>
+    <div><p id="s1"></p><p class="hint" id="h1"></p></div>
+  </div>
+
+  <div class="step">
+    <div class="n">2</div>
+    <div>
+      <p id="s2"></p>
+      <button class="big" id="go"></button>
+      <p class="hint" id="h2"></p>
+      <div id="msg" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <div class="step" id="done" hidden>
+    <div class="n">3</div>
+    <div style="flex:1">
+      <p class="ok" id="okmsg"></p>
+      <div id="items"></div>
+      <p class="hint" id="s3"></p>
+    </div>
+  </div>
+
+  <footer>
+    <a href="?lang=en">English</a> · <a href="?lang=it">Italiano</a> ·
+    <a href="setup.html" id="adm"></a>
+  </footer>
+</main>
+
+<script src="box.js"></script>
+<script>
+const T = {
+  en: { demo: 'REHEARSAL on this computer: the values below are dummies.',
+    title: 'Get your secrets',
+    s1: 'Plug in your security key.', h1: 'If it does not fit the computer, use the small adapter that comes with it.',
+    s2: 'Press the button. Your browser will ask for the key’s PIN. Then touch the key.', go: 'Unlock',
+    h2: 'Touch means: put your finger on the key until it answers.',
+    wait: 'Waiting for your key…', ok: 'Done!', copy: 'Copy the secret', copied: 'Copied ✓', open: 'Open',
+    s3: 'Press Open to go to the site, then press Copy and paste the secret where it asks. The copy is cleared after a minute.',
+    adm: 'Manage', empty: 'The box is empty.',
+    e_cancel: 'It was cancelled or took too long. Press Unlock again, and touch the key when it answers.',
+    e_nokey: 'This browser or key cannot do this. Try Chrome or Edge, with the key plugged in.',
+    e_none: 'Nothing has been set up here yet.', e_other: 'Something went wrong: ' },
+  it: { demo: 'PROVA su questo computer: i valori qui sotto sono finti.',
+    title: 'Recupera i tuoi segreti',
+    s1: 'Inserisci la chiave di sicurezza.', h1: 'Se non entra nel computer, usa il piccolo adattatore in dotazione.',
+    s2: 'Premi il pulsante. Il browser chiederà il PIN della chiave. Poi tocca la chiave.', go: 'Sblocca',
+    h2: 'Toccare vuol dire appoggiare il dito sulla chiave finché risponde.',
+    wait: 'In attesa della chiave…', ok: 'Fatto!', copy: 'Copia il segreto', copied: 'Copiato ✓', open: 'Apri',
+    s3: 'Premi Apri per andare al sito, poi premi Copia e incolla il segreto dove lo chiede. La copia si cancella dopo un minuto.',
+    adm: 'Gestisci', empty: 'La scatola è vuota.',
+    e_cancel: 'Annullato o troppo lento. Premi di nuovo Sblocca e tocca la chiave quando risponde.',
+    e_nokey: 'Questo browser o questa chiave non può farlo. Prova Chrome o Edge, con la chiave inserita.',
+    e_none: 'Qui non è ancora stato configurato nulla.', e_other: 'Qualcosa è andato storto: ' }
+};
+const q = new URLSearchParams(location.search).get('lang');
+const nav = (navigator.language || 'en').slice(0, 2);
+const lang = T[q] ? q : (T[nav] ? nav : 'en');
+const L = T[lang]; document.documentElement.lang = lang;
+const $ = (id) => document.getElementById(id);
+if (RP === 'localhost') { $('demo').hidden = false; $('demo').textContent = L.demo; }
+$('title').textContent = L.title; document.title = L.title;
+$('s1').textContent = L.s1; $('h1').textContent = L.h1; $('s2').textContent = L.s2; $('go').textContent = L.go;
+$('h2').textContent = L.h2; $('s3').textContent = L.s3; $('adm').textContent = L.adm;
+
+let clearTimer = null;
+function showItems(items) {
+  const box = $('items'); box.textContent = '';
+  if (!items.length) { const p = document.createElement('p'); p.textContent = L.empty; box.appendChild(p); return; }
+  items.forEach((it) => {
+    const wrap = document.createElement('div'); wrap.className = 'item';
+    const h = document.createElement('h3'); h.textContent = it.title || '—'; wrap.appendChild(h);
+    const row = document.createElement('div'); row.className = 'row';
+    const url = safeUrl(it.url);
+    if (url) { const a = document.createElement('a'); a.className = 'big quiet'; a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = L.open + ' ' + new URL(url).host; row.appendChild(a); }
+    const c = document.createElement('button'); c.className = 'big'; c.textContent = L.copy;
+    c.onclick = async () => {
+      await navigator.clipboard.writeText(it.secret); c.textContent = L.copied;
+      clearTimeout(clearTimer); clearTimer = setTimeout(() => { navigator.clipboard.writeText(' ').catch(() => {}); c.textContent = L.copy; }, 60000);
+    };
+    row.appendChild(c); wrap.appendChild(row); box.appendChild(wrap);
+  });
+}
+$('go').onclick = async () => {
+  const msg = $('msg'); msg.className = ''; msg.textContent = L.wait; $('go').disabled = true; $('done').hidden = true;
+  try {
+    const vault = await loadBox('box.json'); if (!vault) { const e = new Error('none'); e.name = 'NoBundle'; throw e; }
+    const items = await listItems(vault, await unlockVault(vault));
+    msg.textContent = ''; $('okmsg').textContent = L.ok; showItems(items); $('done').hidden = false;
+  } catch (e) {
+    msg.className = 'bad';
+    msg.textContent = e.name === 'NoBundle' ? L.e_none : niceError(e, L);
+  } finally { $('go').disabled = false; }
+};
+</script>
+</body>
+</html>

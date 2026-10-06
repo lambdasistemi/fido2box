@@ -1,0 +1,22 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    # GitHub-hosted on purpose: this repository is public and security-sensitive.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm test
+      - name: No external imports in the run-time code
+        run: |
+          if grep -nE 'src="https?:|from .https?:|import\(.https?:|<link[^>]*href="https?:' web/*; then
+            echo "external import found"; exit 1; fi
