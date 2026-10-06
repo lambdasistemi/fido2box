@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>fido2box</title>
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src https://api.github.com; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' https://api.github.com; base-uri 'none'; form-action 'none'">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
 <header class="bar"><div class="in">
   <span class="brand">fido2box</span>
   <nav><a href="#/" id="n-boxes">Boxes</a><a href="#/keys" id="n-keys">Keys</a><a href="#/settings" id="n-settings">Settings</a></nav>
-  <span class="where" id="where"></span>
+  <span class="where"><a href="https://github.com/lambdasistemi/recover-box" target="_blank" rel="noopener noreferrer" id="codeLink">Code</a> <a id="commitLink" target="_blank" rel="noopener noreferrer" hidden></a> · <span id="where"></span></span>
 </div></header>
 <main id="app"></main>
 <div id="status" role="status" aria-live="polite"></div>

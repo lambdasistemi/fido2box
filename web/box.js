@@ -77,7 +77,7 @@ function safeUrl(u) {
 async function prfFor(credId) {                       // browser shows PIN + touch
   const a = await navigator.credentials.get({ publicKey: {
     challenge: crypto.getRandomValues(new Uint8Array(32)), rpId: RP,
-    allowCredentials: [{ type: 'public-key', id: credId }], userVerification: 'required',
+    allowCredentials: [{ type: 'public-key', id: credId }], userVerification: 'required', timeout: 60000,
     extensions: { prf: { eval: { first: SALT } } } } });
   if (!(new Uint8Array(a.response.authenticatorData)[32] & 0x04)) { const e = new Error('uv'); e.name = 'NoUV'; throw e; }   // the key must have verified the user (PIN)
   const r = a.getClientExtensionResults().prf;
@@ -86,7 +86,7 @@ async function prfFor(credId) {                       // browser shows PIN + tou
 }
 async function createCredential(name) {
   const cred = await navigator.credentials.create({ publicKey: {
-    rp: { name: 'Recover box', id: RP },
+    rp: { name: 'Recover box', id: RP }, timeout: 60000,
     user: { id: crypto.getRandomValues(new Uint8Array(16)), name, displayName: name },
     challenge: crypto.getRandomValues(new Uint8Array(32)),
     pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
