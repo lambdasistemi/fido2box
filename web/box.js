@@ -53,7 +53,7 @@ async function listItems(vault, data) {
   if (vault.v === 1) return [await decryptItem(data, { iv: vault.iv, ct: vault.ct })];   // v1: a single note
   return Promise.all((vault.items || []).map((it) => decryptItem(data, it)));
 }
-const emptyVault = () => ({ v: 2, rpId: RP, keys: [], items: [] });
+const emptyVault = () => ({ v: 2, rev: 0, rpId: RP, keys: [], items: [] });   // rev goes up by one on every saved edit
 async function addKeyEntry(vault, name, credId, prf, data) {
   return { ...vault, keys: [...keysOf(vault), { name, id: b64(credId), ...(await wrapDataKey(data, prf)) }] };
 }

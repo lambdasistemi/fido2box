@@ -51,3 +51,7 @@ The run-time code has no dependencies: `web/box.js` and the two pages use only b
 ## Licence
 
 Apache-2.0.
+
+## Keeping the box safe
+
+The box file is the one thing you cannot recreate. The page and the server can always be rebuilt from this repository: if the server is lost, point the same domain at a new one, deploy `web/`, and put the box file back. Keep copies of the file: **Download a copy of this box** is available as soon as a box is chosen, without unlocking. Every saved edit raises the box's `rev`; when you open a file from your computer the page tells you whether it is the same as, newer than, or older than the website's copy. The domain itself cannot be replaced: keys are enrolled for it.

@@ -56,6 +56,8 @@
       <input type="file" id="file" accept=".json,application/json" hidden>
       <p class="hint" id="h0"></p>
       <p id="chosen" class="ok"></p>
+      <p id="sync" class="hint"></p>
+      <p><button class="small" id="copyBtn" hidden></button></p>
     </div>
   </div>
 
@@ -128,6 +130,7 @@
 const T = {
   en: { demo: 'REHEARSAL on this computer: keys added here do not work on the real address. Use dummy values.',
     title: 'Get your secrets',
+    copyBtn: 'Download a copy of this box', s_same: 'Same as the copy on the website.', s_newer: 'Newer than the website copy: put this file on the website.', s_older: 'OLDER than the website copy: do not use it to replace the website one.', s_diff: 'Differs from the website copy.', s_none: 'No copy of this box on the website.',
     s0: 'Choose a box.', fileBtn: 'Open a box file from this computer', newBtn: 'Make a new box',
     h0: 'A box is one locked file. Opening a file here never sends it anywhere.', chosen: 'Box: ', pickfirst: 'Choose a box first.', badfile: 'That file is not a box.',
     s1: 'Plug in your security key.', h1: 'If it does not fit the computer, use the small adapter that comes with it.',
@@ -141,6 +144,7 @@ const T = {
     e_none: 'There is no box here yet. Press “Create a box” to make one.', e_other: 'Something went wrong: ' },
   it: { demo: 'PROVA su questo computer: le chiavi aggiunte qui non funzionano all’indirizzo vero. Usa valori finti.',
     title: 'Recupera i tuoi segreti',
+    copyBtn: 'Scarica una copia di questa scatola', s_same: 'Uguale alla copia sul sito.', s_newer: 'Più recente della copia sul sito: mettila sul sito.', s_older: 'PIÙ VECCHIA della copia sul sito: non usarla per sostituirla.', s_diff: 'Diversa dalla copia sul sito.', s_none: 'Sul sito non c’è una copia di questa scatola.',
     s0: 'Scegli una scatola.', fileBtn: 'Apri un file scatola da questo computer', newBtn: 'Crea una nuova scatola',
     h0: 'Una scatola è un file chiuso a chiave. Aprirlo qui non lo invia da nessuna parte.', chosen: 'Scatola: ', pickfirst: 'Scegli prima una scatola.', badfile: 'Quel file non è una scatola.',
     s1: 'Inserisci la chiave di sicurezza.', h1: 'Se non entra nel computer, usa il piccolo adattatore in dotazione.',
@@ -192,15 +196,26 @@ function opened() { $('okmsg').textContent = L.ok; showItems(); $('done').hidden
 // ---------- choosing the box: one of the site's, a file from this computer, or a new one ----------
 const NAME_RE = /^[A-Za-z0-9_-]+$/;
 const looksLikeBox = (b) => b && typeof b === 'object' && (b.v === 1 || b.v === 2) && Array.isArray(keysOf(b));
-function chooseBox(label, b) { box = b; $('chosen').textContent = L.chosen + label; $('msg').textContent = ''; }
+function chooseBox(label, b) { box = b; $('chosen').textContent = L.chosen + label; $('msg').textContent = ''; $('sync').textContent = ''; $('copyBtn').hidden = false; }
+const saveFile = (text, name) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; a.click(); };
+$('copyBtn').textContent = L.copyBtn;
+$('copyBtn').onclick = () => saveFile(JSON.stringify(box, null, 2), 'box.json');
+// compare a box file from this computer with the site's copy of the same box (by rev, then by content)
+async function compareWithSite(label, b) {
+  const base = label.replace(/\.json$/i, ''); let site = NAME_RE.test(base) ? await loadBox('boxes/' + base + '.json') : null;
+  if (!looksLikeBox(site)) site = await loadBox('box.json');
+  const el = $('sync'); if (!looksLikeBox(site)) { el.textContent = L.s_none; return; }
+  const a = b.rev || 0, s = site.rev || 0;
+  el.textContent = JSON.stringify(b) === JSON.stringify(site) ? L.s_same : a > s ? L.s_newer : a < s ? L.s_older : L.s_diff;
+}
 async function loadNamed(name) { const b = NAME_RE.test(name) ? await loadBox('boxes/' + name + '.json') : null; if (looksLikeBox(b)) chooseBox(name, b); return !!box; }
 $('fileBtn').onclick = () => $('file').click();
 $('file').onchange = async (e) => {
   const f = e.target.files && e.target.files[0]; if (!f) return;
-  try { const b = JSON.parse(await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsText(f); })); if (!looksLikeBox(b)) throw new Error('x'); chooseBox(f.name, b); }
+  try { const b = JSON.parse(await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsText(f); })); if (!looksLikeBox(b)) throw new Error('x'); chooseBox(f.name, b); await compareWithSite(f.name, b); }
   catch (x) { box = null; $('chosen').textContent = ''; say('msg', L.badfile, 'bad'); }
 };
-$('newBtn').onclick = () => { data = newDataKey(); vault = emptyVault(); plain = []; box = null; $('chosen').textContent = ''; $('msg').textContent = ''; opened(); openManage(); };
+$('newBtn').onclick = () => { data = newDataKey(); vault = emptyVault(); plain = []; box = null; edited = false; $('copyBtn').hidden = true; $('sync').textContent = ''; $('chosen').textContent = ''; $('msg').textContent = ''; opened(); openManage(); };
 (async () => {
   const want = new URLSearchParams(location.search).get('box');
   if (want && await loadNamed(want)) return;
@@ -215,14 +230,15 @@ $('go').onclick = async () => {
   msg.className = ''; msg.textContent = L.wait; $('go').disabled = true; $('done').hidden = true;
   try {
     data = await unlockVault(box); plain = await listItems(box, data);
-    vault = { v: 2, rpId: box.rpId || RP, keys: keysOf(box), items: [] }; await rebuildItems();
+    vault = { v: 2, rev: box.rev || 0, rpId: box.rpId || RP, keys: keysOf(box), items: [] }; edited = false; await rebuildItems();
     msg.textContent = ''; opened();
   } catch (e) { msg.className = 'bad'; msg.textContent = niceError(e, L); }
   finally { $('go').disabled = false; }
 };
 
 // ---------- editing ----------
-const dirty = () => { $('dirty').hidden = false; };
+let edited = false;
+const dirty = () => { edited = true; $('dirty').hidden = false; };
 async function rebuildItems() { vault = { ...vault, items: await Promise.all(plain.map((it) => encryptItem(data, it))) }; }
 function confirmCell(td, key, label, doIt) {               // a button that needs a second click
   td.textContent = '';
@@ -254,7 +270,7 @@ function render() {
   });
   if (!ks.length) { const tr = document.createElement('tr'); const td = document.createElement('td'); td.className = 'muted'; td.textContent = 'No key yet: add one before you save.'; tr.appendChild(td); kl.appendChild(tr); }
   $('outBox').hidden = !ks.length;
-  if (ks.length) $('out').value = JSON.stringify(vault, null, 2);
+  if (ks.length) $('out').value = JSON.stringify({ ...vault, rev: (vault.rev || 0) + (edited ? 1 : 0) }, null, 2);
   showItems();
 }
 $('showsec').onchange = (e) => { $('secret').type = e.target.checked ? 'text' : 'password'; };

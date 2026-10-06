@@ -104,6 +104,32 @@ const set = (w, id, v) => { w.document.getElementById(id).value = v; };
   ok(/mine\.json/.test(w.document.getElementById('chosen').textContent), 'a box file from the computer is chosen');
   click(w, 'go'); await tick(400);
   ok($$(w, '#items h3').map((h) => h.textContent).join() === '1Password,Google', 'the uploaded box unlocks');
+  // ===== revision numbers, download a copy, comparing a local file with the website's =====
+  ok(file.rev === 1 && file2.rev === 2, 'rev goes up by one per edited save: ' + file.rev + ' then ' + file2.rev);
+  const site = { ...file, rev: 2 };
+  async function pageSite(serverBox, local) {
+    const html = fs.readFileSync(path.join(DIR, 'index.html'), 'utf8').replace('<script src="box.js"></script>', '<script>' + fs.readFileSync(path.join(DIR, 'box.js'), 'utf8') + '</script>');
+    let saved = null;
+    const dom = new JSDOM(html, { runScripts: 'dangerously', url: 'http://localhost:8099/', pretendToBeVisual: true,
+      beforeParse(w) { Object.defineProperty(w, 'crypto', { value: nodeCrypto.webcrypto, configurable: true }); w.TextEncoder = TextEncoder; w.TextDecoder = TextDecoder; w.btoa = btoa; w.atob = atob;
+        w.fetch = async (u) => (serverBox && u === 'box.json') ? { ok: true, json: async () => serverBox } : { ok: false }; w.__copied = fakeKey(w);
+        w.URL.createObjectURL = (b) => { saved = b; return 'blob:x'; }; } });
+    await tick(120); const w = dom.window;
+    if (local) { const f = new w.File([JSON.stringify(local)], 'box.json'); Object.defineProperty(w.document.getElementById('file'), 'files', { value: [f], configurable: true }); w.document.getElementById('file').dispatchEvent(new w.Event('change')); await tick(150); }
+    return { w, saved: () => saved };
+  }
+  let r = await pageSite(site, { ...file, rev: 1 });
+  ok(/OLDER/.test(r.w.document.getElementById('sync').textContent), 'a local file with a lower rev is flagged OLDER than the site');
+  r = await pageSite(site, { ...file, rev: 3 });
+  ok(/Newer/.test(r.w.document.getElementById('sync').textContent), 'a local file with a higher rev is flagged newer');
+  r = await pageSite(site, site);
+  ok(/Same/.test(r.w.document.getElementById('sync').textContent), 'an identical local file is flagged the same');
+  r = await pageSite(null, file);
+  ok(/No copy/.test(r.w.document.getElementById('sync').textContent), 'no copy on the site is said plainly');
+  ok(!r.w.document.getElementById('copyBtn').hidden, 'the download-a-copy button appears once a box is chosen');
+  r.w.document.getElementById('copyBtn').click();
+  const txt = await new Promise((ok2) => { const fr = new r.w.FileReader(); fr.onload = () => ok2(fr.result); fr.readAsText(r.saved()); });
+  ok(JSON.stringify(JSON.parse(txt)) === JSON.stringify(file), 'the downloaded copy is the same box, without unlocking');
   // ===== Italian =====
   w = await page('index.html', file, '?lang=it'); click(w, 'go'); await tick(400);
   ok(w.document.getElementById('title').textContent === 'Recupera i tuoi segreti' && /Copia il segreto/.test(w.document.body.textContent), 'Italian version works');
