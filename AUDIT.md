@@ -21,17 +21,20 @@ Each one has a test in `test/` (see the names there).
 | A secret only the hardware key can recompute | WebAuthn PRF extension (CTAP hmac-secret), fixed salt `recovery-v1` |
 
 There is no password-based key derivation and no hand-written cipher.
+## Audit map: what to read, and what is out of scope
 
-## Where to read (about 30 lines)
+The code is plain ES modules served as they are (no build). Each file below has `// @ts-check` and JSDoc types, checked in CI by `tsc --noEmit`. Read them in this order:
 
-All in `web/box.js`, section "core crypto":
+| File | Lines | Trusts | What it is |
+|---|---|---|---|
+| `web/crypto.js` | about 130 | WebCrypto only | **The whole construction and the box format.** No page, network or key: a key's secret number is an argument. `wrapKey`, `wrapDataKey`, `unwrapDataKey`, `encryptItem`, `decryptItem`, `parseItem`, `listItems`. Read this first and most carefully. |
+| `web/webauthn.js` | about 115 | the browser's WebAuthn | Everything that talks to a key: ask for the secret number (`prfFor`), enrol (`enrolKey`), detect, test, label. Always `userVerification: 'required'` for the secret number; the user-verified flag is checked. |
+| `web/url.js` | 10 | | `safeUrl`: the only gate for what Open may navigate to. |
+| `web/github.js` | about 65 | api.github.com | List, read and write `boxes/NAME.json`. The token is only sent there. Refuses to overwrite a version with the same or a higher `rev`. |
+| `web/store.js` | 30 | IndexedDB | The library of locked boxes in the browser. |
+| `web/app.js` | about 270 | all of the above | The interface and its state. **Not type-checked.** It holds the unlocked data key and the plaintext items in memory (`S.unlocked`) while a box is open, handles the clipboard and the token. |
 
-- `wrapKey(prf)`: key-derivation step from the key's secret.
-- `wrapDataKey` / `unwrapDataKey`: locks the data key per hardware key.
-- `encryptItem` / `decryptItem`: locks one `{title, url, secret}`.
-- `safeUrl`: the only gate for what `Open` may navigate to.
-
-Browser part: `prfFor` (ask the key) and `createCredential` (enrol). `userVerification: 'required'`, so the key demands its PIN.
+Out of scope: the browser, the operating system, the hardware key's firmware, GitHub, the domain and its DNS.
 
 ## Known limits and questions for a reviewer
 
@@ -45,6 +48,6 @@ Browser part: `prfFor` (ask the key) and `createCredential` (enrol). `userVerifi
 
 ## Reproduce the checks
 
-    npm install && npm test
+    npm install && npx tsc -p tsconfig.json && npm test
 
 Unit checks of the crypto and the GitHub helpers with simulated keys, and checks that drive the real app in headless Chrome with a virtual security key (WebAuthn with PRF), IndexedDB and a fake GitHub. The real key's prompt and the real GitHub are the things they cannot exercise.

@@ -13,6 +13,12 @@ const server = http.createServer((q, r) => {
   if (p === 'COMMIT') { r.writeHead(200); return r.end('0123456789abcdef0123456789abcdef01234567\n'); }
   fs.readFile(path.join(WEB, p), (e, d) => { if (e) { r.writeHead(404); return r.end(); } r.writeHead(200, { 'content-type': TYPES[path.extname(p)] || 'text/plain' }); r.end(d); });
 });
+// the library, read straight from IndexedDB by the test (the app keeps its own copy of this code in a module)
+const LIB_READER = `window.lib = (() => {
+  const open = () => new Promise((res, rej) => { const r = indexedDB.open('recover-box', 1); r.onupgradeneeded = () => r.result.createObjectStore('boxes', { keyPath: 'name' }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  const tx = async (f) => { const db = await open(); return new Promise((res, rej) => { const t = db.transaction('boxes', 'readonly'), q = f(t.objectStore('boxes')); t.oncomplete = () => { db.close(); res(q.result); }; t.onerror = () => rej(t.error); }); };
+  return { list: () => tx((s) => s.getAll()), get: (n) => tx((s) => s.get(n)) };
+})();`;
 // the fake GitHub, installed in every page before its scripts run
 const FAKE_GH = `(() => {
   const gh = window.__gh = { token: 'ghp_FAKE', files: {}, puts: [], auth: [], repoExists: true };
@@ -52,7 +58,7 @@ async function main() {
   const auth = (extra = {}) => send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', ctap2Version: 'ctap2_1', transport: 'usb', hasResidentKey: false, hasUserVerification: true, isUserVerified: true, hasPrf: true, automaticPresenceSimulation: true, ...extra } });
   try {
     await send('Page.enable'); await send('Runtime.enable'); await send('Page.bringToFront'); await send('Emulation.setFocusEmulationEnabled', { enabled: true });
-    await send('Page.addScriptToEvaluateOnNewDocument', { source: FAKE_GH }); await send('WebAuthn.enable', { enableUI: false });
+    await send('Page.addScriptToEvaluateOnNewDocument', { source: FAKE_GH + LIB_READER }); await send('WebAuthn.enable', { enableUI: false });
     await send('Browser.grantPermissions', { permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'], origin: base.replace(/\/$/, '') }).catch(() => {});
     const key1 = await auth();
     // ===== empty library, make a box =====

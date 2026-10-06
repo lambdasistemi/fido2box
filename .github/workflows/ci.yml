@@ -15,6 +15,8 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
+      - name: Types (JSDoc checked by tsc, no build)
+        run: npx tsc -p tsconfig.json
       - run: npm test
       - name: No external imports in the run-time code
         run: |

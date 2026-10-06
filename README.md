@@ -40,4 +40,4 @@ A box file is the one thing you cannot recreate. The app and the site can always
 
 ## Tests
 
-`npm test` runs unit checks of the crypto and the GitHub helpers, then drives the real app in headless Chrome with a virtual security key (WebAuthn with PRF), IndexedDB and a fake GitHub. It needs Chrome or Chromium on the path, and is skipped without it.
+`npm test` runs unit checks of the crypto and the GitHub helpers, then drives the real app in headless Chrome with a virtual security key (WebAuthn with PRF), IndexedDB and a fake GitHub. It needs Chrome or Chromium on the path, and is skipped without it. `npx tsc -p tsconfig.json` type-checks the modules from their JSDoc (the source is what is served: there is no build).

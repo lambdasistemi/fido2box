@@ -4,6 +4,10 @@
   "private": true,
   "description": "Keep a few secrets behind a hardware key (FIDO2). Static files, no dependencies at run time.",
   "license": "Apache-2.0",
-  "scripts": { "test": "node test/box.test.js && node test/browser.test.js" },
-  "devDependencies": { "jsdom": "^26.0.0" }
+  "scripts": {
+    "test": "node test/box.test.js && node test/browser.test.js"
+  },
+  "devDependencies": {
+    "typescript": "5.9"
+  }
 }

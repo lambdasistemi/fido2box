@@ -1,8 +1,9 @@
-const B = require('../web/box.js');
+let B;   // the modules under test (ES modules, imported below)
 const assert = require('assert');
 let n = 0; const ok = (name) => { n++; console.log('ok  ' + name); };
 const prf = (s) => B.enc.encode(s.padEnd(32, '.')).slice(0, 32);       // a fake "secret only this key can make"
 (async () => {
+  B = { ...(await import('../web/crypto.js')), ...(await import('../web/github.js')), ...(await import('../web/url.js')) };
   // 1. new vault with one key and two items
   let data = B.newDataKey(), v = B.emptyVault();
   v = await B.addKeyEntry(v, 'hk-phone', B.enc.encode('credA'), prf('keyA'), data);
