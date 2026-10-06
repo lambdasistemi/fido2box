@@ -13,7 +13,7 @@ const h = (tag, props, ...kids) => {
   return e;
 };
 const REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
-const S = { probe: null, boxes: [], remote: null, remoteErr: '', unlocked: {}, tab: 'items', repo: '', token: '', detected: '', confirm: '', newOpen: false, busy: false };
+const S = { who: '', probe: null, boxes: [], remote: null, remoteErr: '', unlocked: {}, tab: 'items', repo: '', token: '', detected: '', confirm: '', newOpen: false, busy: false };
 const storedRepo = () => { try { return localStorage.getItem('box-repo') || ''; } catch (e) { return ''; } };
 S.repo = new URLSearchParams(location.search).get('repo') || storedRepo() || ((window.BOX_DEFAULTS || {}).repo || '');
 const L = { e_cancel: 'Cancelled or timed out. Touch the key when it answers.', e_nokey: 'This browser or key cannot do this (use Chrome or Edge with the key plugged in).', e_uv: 'The key did not verify you (PIN). Try again.', e_other: 'Something went wrong: ' };
@@ -94,7 +94,8 @@ function keyPicker(id, inThisBox) {
     else if (already) hint.textContent = '"' + first(hit) + '" is already in this box. Plug in a different key.';
     else { input.value = first(hit); hint.textContent = 'This is "' + first(hit) + '" (it opens ' + hit.boxes.join(', ') + ').'; }
   }, { keep: true }) } }, 'Which key is this? (PIN, touch)') : null;
-  return { node: h('div', null, input, chips.length ? h('p', { class: 'small muted' }, 'Keys you have used: ', chips) : null, find, hint), name: () => input.value.trim(), alreadyIn: () => already };
+  const read = h('button', { id: id + 'Label', type: 'button', on: { click: act(async () => { const v = await withKey(readLabelOrNone); if (v) { input.value = v; hint.textContent = 'The key says it is "' + v + '".'; } else hint.textContent = 'No label found on this key (or the request was cancelled).'; }, { keep: true }) } }, 'Read its label (PIN, touch)');
+  return { node: h('div', null, input, chips.length ? h('p', { class: 'small muted' }, 'Keys you have used: ', chips) : null, find, read, hint), name: () => input.value.trim(), alreadyIn: () => already };
 }
 // ---------- Boxes ----------
 function boxesView() {
@@ -215,13 +216,20 @@ async function detectKey(ids) {                      // a touch (no PIN): the ke
   let a; try { a = await navigator.credentials.get({ publicKey: { challenge: crypto.getRandomValues(new Uint8Array(32)), rpId: RP, userVerification: 'discouraged', timeout: 60000, allowCredentials: ids.map((id) => ({ type: 'public-key', id: unb64(id) })) } }); } catch (e) { throw Object.assign(new Error('Detect failed: ' + (e.name || 'error') + (e.message ? ' (' + e.message + ')' : '')), { original: e.name }); }
   return b64(a.rawId); });
 }
+async function readLabelOrNone() { try { return await readLabel(); } catch (e) { if (e.original === 'NotAllowedError') return ''; throw e; } }
 function keysView() {
+  const labelIn = h('input', { id: 'labelName', placeholder: 'a name, e.g. hk-bag', maxlength: 64 });
   const map = new Map();
   for (const r of S.boxes) for (const k of keysOf(r.box)) { const e = map.get(k.id) || { id: k.id, names: new Set(), boxes: [] }; e.names.add(k.name); e.boxes.push(r.name); map.set(k.id, e); }
   const all = [...map.values()];
   return h('div', null, h('div', { class: 'row sp' }, h('h1', null, 'Security keys'),
       h('div', { class: 'row' }, h('button', { id: 'testKey', on: { click: act(async () => { S.probe = await withKey(probeKey); }) } }, 'Test the plugged-in key'), h('button', { class: 'primary', id: 'detectAll', on: { click: act(async () => { if (!all.length) throw new Error('No security keys are known here yet. They belong to boxes: make a box, or import one, then Detect can recognise its keys.'); const id = await detectKey(all.map((e) => e.id)); S.detected = id; const e = map.get(id); say(e ? '"' + [...e.names].join(', ') + '" is inserted.' : 'A key answered that is not in any box here.'); }) } }, 'Detect the inserted key (PIN, touch)'))),
     h('p', { class: 'muted small' }, 'A web page cannot see which key is plugged in until you use it. Detection asks the key to sign (most keys, like yours, ask for the PIN and a touch) and matches its answer to the keys listed in your boxes. A wrong PIN uses up one of the tries the key allows.'),
+    h('div', { class: 'card', id: 'labelCard' }, h('h2', null, 'Name a key'),
+      h('p', { class: 'muted small' }, 'Write a name on the plugged-in key itself, so you can tell your identical keys apart later. It is stored on the key (one of its free slots), readable only by this site, and wiped if the key is reset. Needs the PIN and a touch.'),
+      h('div', { class: 'row' }, labelIn, h('button', { id: 'labelBtn', on: { click: act(async () => { const v = labelIn.value.trim(); await withKey(() => writeLabel(v)); say('The label "' + v + '" is written on the key.'); }) } }, 'Write it on the key'),
+        h('button', { id: 'whoBtn', on: { click: act(async () => { const v = await withKey(readLabelOrNone); S.who = v ? 'This key says: "' + v + '".' : 'No label found on this key (or the request was cancelled).'; say(S.who); }) } }, 'Who is this? (PIN, touch)')),
+      S.who ? h('p', { id: 'whoResult' }, S.who) : null),
     S.probe ? h('div', { class: 'card', id: 'probeResult' }, h('h2', null, 'The key answered'),
       h('p', null, S.probe.pin === false ? 'It did not verify your PIN: it may have no PIN set.' : S.probe.pin ? 'PIN verified: yes.' : 'PIN verification: not reported by this browser.'),
       h('p', null, S.probe.prf ? 'Can hold a box key (PRF / hmac-secret): yes.' : 'Can hold a box key (PRF / hmac-secret): NO. This key cannot be used for boxes.'),
