@@ -108,7 +108,7 @@ const set = (w, id, v) => { w.document.getElementById(id).value = v; };
   ok(file.rev === 1 && file2.rev === 2, 'rev goes up by one per edited save: ' + file.rev + ' then ' + file2.rev);
   const site = { ...file, rev: 2 };
   async function pageSite(serverBox, local) {
-    const html = fs.readFileSync(path.join(DIR, 'index.html'), 'utf8').replace('<script src="box.js"></script>', '<script>' + fs.readFileSync(path.join(DIR, 'box.js'), 'utf8') + '</script>');
+    const html = fs.readFileSync(path.join(DIR, 'index.html'), 'utf8').replace(/<meta name="box-repo"[^>]*>/, '').replace('<script src="box.js"></script>', '<script>' + fs.readFileSync(path.join(DIR, 'box.js'), 'utf8') + '</script>');
     let saved = null;
     const dom = new JSDOM(html, { runScripts: 'dangerously', url: 'http://localhost:8099/', pretendToBeVisual: true,
       beforeParse(w) { Object.defineProperty(w, 'crypto', { value: nodeCrypto.webcrypto, configurable: true }); w.TextEncoder = TextEncoder; w.TextDecoder = TextDecoder; w.btoa = btoa; w.atob = atob;
@@ -130,6 +130,13 @@ const set = (w, id, v) => { w.document.getElementById(id).value = v; };
   r.w.document.getElementById('copyBtn').click();
   const txt = await new Promise((ok2) => { const fr = new r.w.FileReader(); fr.onload = () => ok2(fr.result); fr.readAsText(r.saved()); });
   ok(JSON.stringify(JSON.parse(txt)) === JSON.stringify(file), 'the downloaded copy is the same box, without unlocking');
+  // ===== a box repository is configured: links to it, nothing to compare with on the site =====
+  w = await page('index.html', null);
+  ok(w.document.getElementById('repoGet').href === 'https://github.com/paolino/fido-box/blob/main/box.json' && !w.document.getElementById('repoGet').hidden, 'link to the box in the repository');
+  click(w, 'newBtn'); await tick(100);
+  set(w, 'name', 'X'); set(w, 'url', 'https://example.org'); set(w, 'secret', 's'); click(w, 'addItem'); await tick(100);
+  set(w, 'keyName', 'k1'); click(w, 'addKey'); await tick(300);
+  ok(w.document.getElementById('repoPut').href === 'https://github.com/paolino/fido-box/upload/main' && !w.document.getElementById('repoPut').hidden, 'save step links to the repository upload page');
   // ===== Italian =====
   w = await page('index.html', file, '?lang=it'); click(w, 'go'); await tick(400);
   ok(w.document.getElementById('title').textContent === 'Recupera i tuoi segreti' && /Copia il segreto/.test(w.document.body.textContent), 'Italian version works');

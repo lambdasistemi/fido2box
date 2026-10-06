@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
+<meta name="box-repo" content="paolino/fido-box">
 <title>Recover box</title>
 <style>
   :root { color-scheme: light dark; --fg:#1b1b1f; --bg:#f6f7fb; --card:#fff; --muted:#5f6368; --accent:#1a73e8; --ok:#137333; --bad:#b3261e; --line:#dadce0; --demo:#fef7e0; }
@@ -30,7 +31,7 @@
   input[type=checkbox] { width: auto; }
   textarea, input:not([type=checkbox]) { width: 100%; font: 16px ui-monospace, monospace; padding: .6rem; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
   label.f { display: block; margin-top: .6rem; }
-  button.small { font: inherit; font-size: .9rem; padding: .35rem .8rem; border-radius: 8px; border: 1px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer; }
+  a.small, button.small { font: inherit; font-size: .9rem; padding: .35rem .8rem; border-radius: 8px; border: 1px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer; }
   .warn { background: var(--demo); border-radius: 10px; padding: .6rem .9rem; font-size: .85rem; margin-bottom: 1rem; }
   .muted { color: var(--muted); font-size: .9rem; }
   .step p.muted { margin: .1rem 0 .6rem; }
@@ -52,6 +53,7 @@
       <div class="row">
         <button class="big quiet" id="fileBtn"></button>
         <button class="big quiet" id="newBtn"></button>
+        <a class="big quiet" id="repoGet" target="_blank" rel="noopener noreferrer" hidden>Get my box from GitHub</a>
       </div>
       <input type="file" id="file" accept=".json,application/json" hidden>
       <p class="hint" id="h0"></p>
@@ -111,7 +113,8 @@
 
       <div id="outBox" hidden>
         <h2>Save the box</h2>
-        <p class="muted">This page cannot change the website itself. The button gives you a file, <code>box.json</code>. It is locked, so it is safe to keep anywhere. Put it on the website in place of the old one: until you do, nothing changes.</p>
+        <p class="muted">This page cannot store the box itself. The button gives you a file, <code>box.json</code>. It is locked, so it is safe to keep anywhere. To keep it safe, put it in your box repository: until you do, nothing is stored.</p>
+        <p><a class="small" id="repoPut" target="_blank" rel="noopener noreferrer" hidden style="display:inline-block;text-decoration:none">Open the upload page on GitHub</a></p>
         <button class="small" id="download">Save the box</button>
         <button class="small" id="verify">Check that a key opens it</button>
         <div id="verifyMsg" class="muted"></div>
@@ -167,6 +170,9 @@ if (RP === 'localhost') { $('demo').hidden = false; $('demo').textContent = L.de
 $('title').textContent = L.title; document.title = L.title;
 $('s1').textContent = L.s1; $('h1').textContent = L.h1; $('s2').textContent = L.s2; $('go').textContent = L.go;
 $('h2').textContent = L.h2; $('s3').textContent = L.s3;
+const REPO = ((document.querySelector('meta[name=box-repo]') || {}).content || '').trim();   // owner/name of the repository that holds the box file
+const repoOk = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(REPO);
+if (repoOk) { $('repoGet').href = 'https://github.com/' + REPO + '/blob/main/box.json'; $('repoGet').hidden = false; $('repoPut').href = 'https://github.com/' + REPO + '/upload/main'; $('repoPut').hidden = false; }
 $('s0').textContent = L.s0; $('h0').textContent = L.h0; $('fileBtn').textContent = L.fileBtn; $('newBtn').textContent = L.newBtn;
 
 let box = null, vault = null, data = null, plain = [], pending = null, clearTimer = null;
@@ -202,6 +208,7 @@ $('copyBtn').textContent = L.copyBtn;
 $('copyBtn').onclick = () => saveFile(JSON.stringify(box, null, 2), 'box.json');
 // compare a box file from this computer with the site's copy of the same box (by rev, then by content)
 async function compareWithSite(label, b) {
+  if (repoOk) return;   // the box is kept in a private repository: nothing on the site to compare with
   const base = label.replace(/\.json$/i, ''); let site = NAME_RE.test(base) ? await loadBox('boxes/' + base + '.json') : null;
   if (!looksLikeBox(site)) site = await loadBox('box.json');
   const el = $('sync'); if (!looksLikeBox(site)) { el.textContent = L.s_none; return; }
