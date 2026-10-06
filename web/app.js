@@ -2,6 +2,8 @@
 const $app = document.getElementById('app'), $status = document.getElementById('status');
 const h = (tag, props, ...kids) => {
   const e = document.createElement(tag);
+  // password managers must leave this page alone: our inputs are not logins (1Password, LastPass, Bitwarden)
+  if (tag === 'input') { e.setAttribute('data-1p-ignore', ''); e.setAttribute('data-lpignore', 'true'); e.setAttribute('data-bwignore', 'true'); e.setAttribute('autocomplete', 'off'); }
   for (const [k, v] of Object.entries(props || {})) {
     if (k === 'on') for (const [ev, f] of Object.entries(v)) e.addEventListener(ev, f);
     else if (k === 'class') e.className = v; else if (k === 'value') e.value = v;

@@ -68,6 +68,9 @@ async function main() {
     ok(await has('PIN verified: yes') && await has('PRF / hmac-secret): yes'), 'Test the plugged-in key works with no box at all: PIN verified, PRF supported');
     ok((await run(`lib.list().then((l) => l.length)`)) === 0, 'testing a key stores nothing in the library');
     await open();
+    // password managers are told to ignore every input (this page holds no logins)
+    await click('#newBtn'); await sleep(250);
+    ok(await run(`[...document.querySelectorAll('input')].every((i) => i.hasAttribute('data-1p-ignore') && i.getAttribute('data-lpignore') === 'true' && i.hasAttribute('data-bwignore'))`) && (await run(`document.querySelectorAll('input').length`)) > 0, 'every input on the page tells password managers to ignore it');
     await click('#newBtn'); await fill('#newName', 'bad name!'); await fill('#newKey', 'hk-home'); await click('#createBox'); await sleep(500);
     ok(await has('letters, digits'), 'a bad box name is refused');
     await fill('#newName', 'paolo'); await click('#createBox');
