@@ -68,6 +68,9 @@ async function main() {
     ok(await has('PIN verified: yes') && await has('PRF / hmac-secret): yes'), 'Test the plugged-in key works with no box at all: PIN verified, PRF supported');
     ok((await run(`lib.list().then((l) => l.length)`)) === 0, 'testing a key stores nothing in the library');
     await open();
+    // password managers are told to ignore every input (this page holds no logins)
+    await click('#newBtn'); await sleep(250);
+    ok(await run(`[...document.querySelectorAll('input')].every((i) => i.hasAttribute('data-1p-ignore') && i.getAttribute('data-lpignore') === 'true' && i.hasAttribute('data-bwignore'))`) && (await run(`document.querySelectorAll('input').length`)) > 0, 'every input on the page tells password managers to ignore it');
     await click('#newBtn'); await fill('#newName', 'bad name!'); await fill('#newKey', 'hk-home'); await click('#createBox'); await sleep(500);
     ok(await has('letters, digits'), 'a bad box name is refused');
     await fill('#newName', 'paolo'); await click('#createBox');
@@ -120,6 +123,25 @@ async function main() {
     ok(await has('Still waiting') || await has('Still working'), 'pressing Detect again says it is still waiting instead of doing nothing');
     await send('WebAuthn.setAutomaticPresenceSimulation', { authenticatorId: key1.authenticatorId, enabled: true });
     await run(`document.querySelector('#lockBtn') && void 0`); await open('#/box/paolo'); await click('#unlockBtn'); await until(`!!${q('#lockBtn')}`);
+    // ===== naming a key: recognised, already in the box, or new =====
+    await open('#/'); await click('#newBtn'); await sleep(250);
+    ok(await run(`!!${q('#newKeyFind')}`) && await has('Keys you have used'), 'New box: once the browser knows keys, it offers their names and a way to recognise the plugged-in one');
+    await click('#newKeyFind'); await until(`/^hk-/.test(${q('#newKey')}.value)`);   // the one virtual key holds several credentials and answers with any of them
+    ok(/This is "hk-(home|bag)"/.test(await text()), 'a key used before is recognised by a touch and its name is filled in');
+    await open('#/box/paolo'); await click('#unlockBtn'); await until(`!!${q('#lockBtn')}`); await click('#tab-keys'); await sleep(250);
+    const nKeys = () => run(`lib.get('paolo').then((r) => r.box.keys.length)`); const before = await nKeys();
+    await click('#kNameFind'); await until(`document.body.innerText.includes('already in this box')`);
+    ok(/"hk-(home|bag)" is already in this box/.test(await text()), 'a key that is already in the box is recognised as such');
+    await click('#addKey'); await sleep(600);
+    ok((await nKeys()) === before && await has('already in this box'), 'it cannot be added twice');
+    await send('WebAuthn.setAutomaticPresenceSimulation', { authenticatorId: key1.authenticatorId, enabled: false });
+    const keyN = await auth();
+    await click('#kNameFind'); await until(`document.body.innerText.includes('not a key you have used before')`);
+    ok(await has('not a key you have used before') && (await run(`${q('#kName')}.value`)) === '', 'a key no box lists is reported as new, to be named by you');
+    await fill('#kName', 'hk-new'); await click('#addKey'); await until(`document.body.innerText.includes('hk-new')`);
+    ok((await nKeys()) === before + 1, 'a new key is added under the name you gave it');
+    await send('WebAuthn.removeVirtualAuthenticator', { authenticatorId: keyN.authenticatorId });
+    await send('WebAuthn.setAutomaticPresenceSimulation', { authenticatorId: key1.authenticatorId, enabled: true });
     // ===== another key cannot open it =====
     await send('WebAuthn.removeVirtualAuthenticator', { authenticatorId: key1.authenticatorId }); const key2 = await auth();
     await open('#/box/paolo'); await click('#unlockBtn'); await sleep(1500);

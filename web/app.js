@@ -2,6 +2,8 @@
 const $app = document.getElementById('app'), $status = document.getElementById('status');
 const h = (tag, props, ...kids) => {
   const e = document.createElement(tag);
+  // password managers must leave this page alone: our inputs are not logins (1Password, LastPass, Bitwarden)
+  if (tag === 'input') { e.setAttribute('data-1p-ignore', ''); e.setAttribute('data-lpignore', 'true'); e.setAttribute('data-bwignore', 'true'); e.setAttribute('autocomplete', 'off'); }
   for (const [k, v] of Object.entries(props || {})) {
     if (k === 'on') for (const [ev, f] of Object.entries(v)) e.addEventListener(ev, f);
     else if (k === 'class') e.className = v; else if (k === 'value') e.value = v;
@@ -27,10 +29,10 @@ const ghError = (e) => ({
 const errText = (e) => (['RemoteNewer', 'BadToken', 'NoRepo', 'Conflict', 'GitHubError', 'TypeError'].includes(e.name) ? ghError(e) : (e.name === 'NoUV' ? L.e_uv : niceError(e, L)));
 // A handler runs once at a time (its own flag): a key waiting for a touch must not freeze the other buttons.
 // On an error show it and keep the form as it is (no re-render, so nothing typed is lost).
-const act = (f) => { let running = false; return async (ev) => {
+const act = (f, opts) => { let running = false; return async (ev) => {
   if (running) { say('Still waiting: touch the key, or wait for it to time out (one minute).', true); return; }
   running = true; let failed = false;
-  try { await f(ev); } catch (e) { failed = true; say(errText(e), true); } finally { running = false; if (!failed) render(); } }; };
+  try { await f(ev); } catch (e) { failed = true; say(errText(e), true); } finally { running = false; if (!failed && !(opts && opts.keep)) render(); } }; };
 let keyBusy = false;
 async function withKey(f) {
   if (keyBusy) throw new Error('Still waiting for the key: touch it, or wait for it to time out (one minute).');
@@ -71,6 +73,29 @@ const confirmBtn = (key, label, doIt, cls) => S.confirm === key
   : h('button', { class: cls || '', on: { click: () => { S.confirm = key; render(); } } }, label);
 const chip = (t, c) => (t ? h('span', { class: 'chip ' + (c || '') }, t) : null);
 
+// ---------- naming the key you are about to add ----------
+// The keys this browser already knows about: those listed in any box, by credential.
+function knownKeys() {
+  const map = new Map();
+  for (const r of S.boxes) for (const k of keysOf(r.box)) { const e = map.get(k.id) || { id: k.id, names: new Set(), boxes: [] }; e.names.add(k.name); e.boxes.push(r.name); map.set(k.id, e); }
+  return [...map.values()];
+}
+// A name field with help: a key used before is recognised by a touch and its name filled in; a new key is named by you.
+function keyPicker(id, inThisBox) {
+  const known = knownKeys(), first = (e) => [...e.names][0]; let already = false;
+  const input = h('input', { id, placeholder: known.length ? 'a name for this key, or press "Which key is this?"' : 'a name for this key, e.g. hk-home', autocomplete: 'off' });
+  const hint = h('p', { class: 'muted small', id: id + 'Hint' });
+  const chips = known.filter((e) => !inThisBox.includes(e.id)).map((e) => h('button', { class: 'chip', type: 'button', on: { click: () => { input.value = first(e); } } }, first(e)));
+  const find = known.length ? h('button', { id: id + 'Find', type: 'button', on: { click: act(async () => {
+    let hit = null;
+    try { const got = await detectKey(known.map((x) => x.id)); hit = known.find((e) => e.id === got) || null; } catch (e) { if (e.original !== 'NotAllowedError') throw e; }
+    already = !!hit && inThisBox.includes(hit.id);
+    if (!hit) { input.value = ''; hint.textContent = 'This is not a key you have used before. Give it a new name.'; }
+    else if (already) hint.textContent = '"' + first(hit) + '" is already in this box. Plug in a different key.';
+    else { input.value = first(hit); hint.textContent = 'This is "' + first(hit) + '" (it opens ' + hit.boxes.join(', ') + ').'; }
+  }, { keep: true }) } }, 'Which key is this? (touch)') : null;
+  return { node: h('div', null, input, chips.length ? h('p', { class: 'small muted' }, 'Keys you have used: ', chips) : null, find, hint), name: () => input.value.trim(), alreadyIn: () => already };
+}
 // ---------- Boxes ----------
 function boxesView() {
   const names = [...new Set([...S.boxes.map((b) => b.name), ...Object.keys(S.remote || {})])].sort();
@@ -80,12 +105,12 @@ function boxesView() {
     const name = f.name.replace(/\.json$/i, '').replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 40) || 'box';
     if (local(name)) throw new Error('A box named "' + name + '" is already in this browser. Delete it first, or rename the file.');
     await lib.put(name, box); await reload(); say('Imported "' + name + '".'); ev.target.value = ''; }) } });
-  const nameIn = h('input', { id: 'newName', placeholder: 'box name, e.g. paolo', maxlength: 40 }), keyIn = h('input', { id: 'newKey', placeholder: 'a name for the key you plug in, e.g. hk-home' });
+  const nameIn = h('input', { id: 'newName', placeholder: 'box name, e.g. paolo', maxlength: 40 }), kp = keyPicker('newKey', []);
   const form = S.newOpen ? h('div', { class: 'card' }, h('h2', null, 'New box'),
-    h('label', null, 'Name (letters, digits, - and _)'), nameIn, h('label', null, 'Security key'), keyIn,
+    h('label', null, 'Name (letters, digits, - and _)'), nameIn, h('label', null, 'Security key'), kp.node,
     h('p', { class: 'muted small' }, 'Plug in the hardware security key you will open this box with, and only that one. It asks for its PIN and a touch, twice.'),
     h('div', { class: 'row' }, h('button', { class: 'primary', id: 'createBox', on: { click: act(async () => {
-      const name = nameIn.value.trim(), kn = keyIn.value.trim();
+      const name = nameIn.value.trim(), kn = kp.name();
       if (!NAME_RE.test(name)) throw new Error('The name may use letters, digits, - and _ (up to 40).'); if (local(name)) throw new Error('A box with that name already exists here.'); if (!kn) throw new Error('Give the security key a name, for example hk-home.');
       const data = newDataKey(); const box = { ...(await withKey(() => enrolKey(emptyVault(), kn, data))), rev: 1 };
       await lib.put(name, box); await reload(); S.unlocked[name] = { data, plain: [] }; S.newOpen = false; location.hash = '#/box/' + name; say('Created "' + name + '".'); }) } }, 'Create'),
@@ -137,15 +162,15 @@ function itemsTab(name, rec, rem, U) {
 }
 function keysTab(name, rec, U) {
   if (!rec) return h('div', { class: 'card' }, 'Pull this box first.');
-  const ks = keysOf(rec.box), kn = h('input', { id: 'kName', placeholder: 'a name for the key you plug in, e.g. hk-bag' });
+  const ks = keysOf(rec.box), kp = keyPicker('kName', ks.map((k) => k.id));
   return h('div', null,
     h('div', { class: 'card' }, h('table', null, ks.map((k, i) => h('tr', null,
       h('td', null, h('strong', null, k.name), ' ', S.detected === k.id ? chip('inserted now', 'live') : null), h('td', { class: 'muted small' }, shortId(k.id)),
       h('td', { class: 'r' }, ks.length > 1 ? confirmBtn('k' + i, 'Remove', async () => { await commit(name, ks.filter((_, j) => j !== i)); }) : h('span', { class: 'muted small' }, 'the only security key'))))),
       h('p', { class: 'muted small' }, 'Removing a key does not revoke it: anyone who ever had it can still open older copies of this box. To revoke, make a new box.'),
       h('button', { id: 'detectBtn', on: { click: act(async () => { const id = await detectKey(ks.map((k) => k.id)); S.detected = id; const k = ks.find((x) => x.id === id); say(k ? '"' + k.name + '" is inserted.' : 'A key answered that is not in this box.'); }) } }, 'Detect the inserted key (touch)')),
-    h('div', { class: 'card' }, h('h2', null, 'Add a security key'), U ? [h('label', null, 'Name'), kn, h('p', { class: 'muted small' }, 'Plug in the hardware key you want to add, and only that one. It asks for its PIN and a touch, twice.'),
-      h('button', { class: 'primary', id: 'addKey', on: { click: act(async () => { const v = kn.value.trim(); if (!v) throw new Error('Give the security key a name, for example hk-home.');
+    h('div', { class: 'card' }, h('h2', null, 'Add a security key'), U ? [h('label', null, 'Security key'), kp.node, h('p', { class: 'muted small' }, 'Plug in the hardware key you want to add, and only that one. It asks for its PIN and a touch, twice.'),
+      h('button', { class: 'primary', id: 'addKey', on: { click: act(async () => { const v = kp.name(); if (kp.alreadyIn()) throw new Error('That key is already in this box.'); if (!v) throw new Error('Give the security key a name, for example hk-home.'); if (ks.some((k) => k.name === v)) throw new Error('A key with that name is already in this box.');
         const added = await withKey(() => enrolKey({ ...rec.box, keys: keysOf(rec.box) }, v, U.data)); await commit(name, added.keys); say('Added "' + v + '".'); }) } }, 'Add this security key')]
       : h('p', { class: 'muted' }, 'Unlock the box first (Items tab): adding a security key needs the box open.')));
 }
@@ -187,7 +212,7 @@ function syncTab(name, rec, rem) {
 // ---------- Keys ----------
 async function detectKey(ids) {                      // a touch (no PIN): the key that answers tells us which one is inserted
   return withKey(async () => {
-  let a; try { a = await navigator.credentials.get({ publicKey: { challenge: crypto.getRandomValues(new Uint8Array(32)), rpId: RP, userVerification: 'discouraged', timeout: 60000, allowCredentials: ids.map((id) => ({ type: 'public-key', id: unb64(id) })) } }); } catch (e) { throw new Error('Detect failed: ' + (e.name || 'error') + (e.message ? ' (' + e.message + ')' : '')); }
+  let a; try { a = await navigator.credentials.get({ publicKey: { challenge: crypto.getRandomValues(new Uint8Array(32)), rpId: RP, userVerification: 'discouraged', timeout: 60000, allowCredentials: ids.map((id) => ({ type: 'public-key', id: unb64(id) })) } }); } catch (e) { throw Object.assign(new Error('Detect failed: ' + (e.name || 'error') + (e.message ? ' (' + e.message + ')' : '')), { original: e.name }); }
   return b64(a.rawId); });
 }
 function keysView() {
