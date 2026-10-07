@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 proof_workspace=$(mktemp -d)
-trap 'rm -r "$proof_workspace"' EXIT
+trap 'chmod -R u+w "$proof_workspace"; rm -r "$proof_workspace"' EXIT
 cp lean/lakefile.lean lean/lean-toolchain lean/Records.lean "$proof_workspace/"
 cp -R lean/Records "$proof_workspace/Records"
 cd "$proof_workspace"
