@@ -55,6 +55,16 @@ async function main() {
   const text = () => run('document.body.innerText'); const has = async (t) => (await text()).includes(t);
   const btn = (label) => run(`[...document.querySelectorAll('button,a.btn')].find((b) => b.textContent.trim() === ${JSON.stringify(label)}).click()`);
   const open = async (hash = '') => { await send('Page.navigate', { url: 'about:blank' }); await send('Page.navigate', { url: base + hash }); await sleep(800); };   // always a real reload
+  const screenshot = async (name) => {
+    if (!process.env.FIDO_UI_SCREENSHOTS) return;
+    fs.mkdirSync(process.env.FIDO_UI_SCREENSHOTS, { recursive: true });
+    const shot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+    fs.writeFileSync(path.join(process.env.FIDO_UI_SCREENSHOTS, name + '.png'), Buffer.from(shot.data, 'base64'));
+  };
+  const theme = (value) => click(`[data-theme-choice="${value}"]`);
+  const systemTheme = async (value) => { await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value }] }); await sleep(150); };
+  const noOverflow = () => run('innerWidth <= 320 && document.documentElement.scrollWidth <= innerWidth');
+  const labeledInputs = () => run(`[...document.querySelectorAll('input:not([type=file])')].every((input) => input.labels.length > 0)`);
   const auth = (extra = {}) => send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', ctap2Version: 'ctap2_1', transport: 'usb', hasResidentKey: false, hasUserVerification: true, isUserVerified: true, hasPrf: true, automaticPresenceSimulation: true, ...extra } });
   try {
     await send('Page.enable'); await send('Runtime.enable'); await send('Page.bringToFront'); await send('Emulation.setFocusEmulationEnabled', { enabled: true });
@@ -64,8 +74,51 @@ async function main() {
     // ===== empty library, make a box =====
     await open();
     ok(await has('No boxes yet'), 'a new browser has an empty library');
-    ok((await run(`${q('#codeLink')}.href`)) === 'https://github.com/lambdasistemi/fido2box', 'the top bar links to the code');
-    ok((await run(`${q('#commitLink')}.textContent`)) === '0123456' && (await run(`${q('#commitLink')}.href`)).endsWith('/commit/0123456789abcdef0123456789abcdef01234567'), 'the top bar shows and links the commit being served');
+    ok(await run(`document.querySelectorAll('[data-theme-choice]').length === 3`), 'Light, Dark, and System controls are available on every page');
+    await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+    await systemTheme('light');
+    ok(await run(`document.documentElement.dataset.theme === 'light' && document.querySelector('[data-theme-choice="system"]').getAttribute('aria-pressed') === 'true'`), 'first visit follows the system and announces the selected appearance');
+    await theme('dark');
+    const darkBackground = await run('getComputedStyle(document.body).backgroundColor');
+    ok(await run(`getComputedStyle(document.documentElement).colorScheme === 'dark'`), 'Dark uses the dark palette and dark native controls');
+    await screenshot('desktop-dark');
+    await systemTheme('dark'); await theme('light');
+    const lightBackground = await run('getComputedStyle(document.body).backgroundColor');
+    ok(lightBackground !== darkBackground && await run(`getComputedStyle(document.documentElement).colorScheme === 'light'`), 'Light overrides a dark system preference and changes the rendered palette');
+    await screenshot('desktop-light');
+    await open('#/settings');
+    ok(await run(`document.documentElement.dataset.theme === 'light' && document.querySelector('[data-theme-choice="light"]').getAttribute('aria-pressed') === 'true'`), 'the appearance choice survives reloads and navigation');
+    ok(await labeledInputs(), 'Settings fields have associated labels');
+    await theme('system');
+    ok(await run(`document.documentElement.dataset.theme === 'dark'`), 'System returns to the current operating-system preference');
+    await systemTheme('light');
+    ok(await until(`document.documentElement.dataset.theme === 'light'`), 'System responds to an operating-system appearance change without reloading');
+    await open('#/keys');
+    ok(await run(`document.querySelector('[data-theme-choice="system"]').getAttribute('aria-pressed') === 'true'`), 'System selection is remembered too');
+    await run(`document.querySelector('[data-theme-choice="dark"]').focus()`);
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r', unmodifiedText: '\r' });
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+    ok(await run(`document.documentElement.dataset.theme === 'dark' && document.activeElement.getAttribute('data-theme-choice') === 'dark'`), 'theme buttons work with the keyboard and retain focus');
+    await run(`localStorage.setItem('fido2box-theme', 'invalid')`); await open();
+    ok(await run(`document.querySelector('[data-theme-choice="system"]').getAttribute('aria-pressed') === 'true'`), 'an invalid stored preference falls back to System');
+    const blockedStorage = await send('Page.addScriptToEvaluateOnNewDocument', { source: `Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('blocked', 'SecurityError'); } });` });
+    await open(); await theme('dark'); await theme('light');
+    ok(await has('No boxes yet') && await run(`document.documentElement.dataset.theme === 'light'`), 'blocked localStorage does not prevent startup or theme changes');
+    await send('Page.removeScriptToEvaluateOnNewDocument', { identifier: blockedStorage.identifier });
+    await open(); await theme('light');
+    await send('Emulation.setDeviceMetricsOverride', { width: 320, height: 800, deviceScaleFactor: 1, mobile: true });
+    ok(await noOverflow(), 'the header and empty library fit a 320px phone');
+    await screenshot('phone-light');
+    await theme('dark'); await screenshot('phone-dark');
+    await open('#/settings');
+    ok(await noOverflow(), 'Settings fits a 320px phone without horizontal page scrolling');
+    await screenshot('phone-settings-dark');
+    await run(`document.querySelector('.skip-link').click()`);
+    ok(await run(`location.hash === '#/settings' && document.activeElement.id === 'app'`), 'Skip to content focuses the current page without changing the route');
+    await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+    await open(); await theme('system');
+    ok((await run(`${q('#codeLink')}.href`)) === 'https://github.com/lambdasistemi/fido2box', 'the footer links to the code');
+    ok((await run(`${q('#commitLink')}.textContent`)) === '0123456' && (await run(`${q('#commitLink')}.href`)).endsWith('/commit/0123456789abcdef0123456789abcdef01234567'), 'the footer shows and links the commit being served');
     await open('#/keys');
     ok(await has('No security keys known in this browser yet') && (await run(`!${q('#detectAll')}.disabled`)), 'Keys view with no boxes: Detect is not greyed out and the page explains why there is nothing to detect');
     await click('#detectAll'); await sleep(300);
@@ -76,6 +129,7 @@ async function main() {
     await open();
     // password managers are told to ignore every input (this page holds no logins)
     await click('#newBtn'); await sleep(250);
+    ok(await labeledInputs(), 'New box fields have associated labels');
     ok(await run(`[...document.querySelectorAll('input')].every((i) => i.hasAttribute('data-1p-ignore') && i.getAttribute('data-lpignore') === 'true' && i.hasAttribute('data-bwignore'))`) && (await run(`document.querySelectorAll('input').length`)) > 0, 'every input on the page tells password managers to ignore it');
     await click('#newBtn'); await fill('#newName', 'bad name!'); await fill('#newKey', 'hk-home'); await click('#createBox'); await sleep(500);
     ok(await has('letters, digits'), 'a bad box name is refused');
@@ -89,6 +143,12 @@ async function main() {
     ok(await has('must start with https'), 'a javascript: address is refused');
     ok((await text()).includes('1Password') && (await text()).includes('accounts.google.com'), 'items listed with their host');
     ok(!(await text()).includes('A3-SECRET-ONE') && !(await run('document.documentElement.outerHTML')).includes('A3-SECRET-ONE'), 'secrets are not in the page');
+    ok(await labeledInputs(), 'item fields have associated labels');
+    await send('Emulation.setDeviceMetricsOverride', { width: 320, height: 800, deviceScaleFactor: 1, mobile: true });
+    ok(await noOverflow(), 'an unlocked box with item actions fits a 320px phone');
+    await screenshot('phone-items');
+    await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+    await screenshot('desktop-items');
     const stored = await run(`lib.list().then((l) => JSON.stringify(l))`);
     ok(!/1Password|google|A3-SECRET|g-code/i.test(stored), 'what is stored in the library leaks no title, address or secret');
     ok((await run(`${q('a.btn')}.href`)) === 'https://my.1password.com/signin', 'Open goes to the address');
@@ -188,6 +248,12 @@ async function main() {
     await open('#/box/two'); await click('#unlockBtn'); await until(`!!${q('#lockBtn')}`); await seed('two');
     await run(`location.hash = '#/'`); await sleep(300); await click('#refreshBtn'); await sleep(800);
     ok(await has('in sync'), 'Refresh GitHub: the same box in both places is "in sync"');
+    ok(await run(`!!document.querySelector('a.box-link[href="#/box/two"]') && document.querySelector('#n-boxes').getAttribute('aria-current') === 'page'`), 'boxes have keyboard-accessible links and the current navigation is announced');
+    await send('Emulation.setDeviceMetricsOverride', { width: 320, height: 800, deviceScaleFactor: 1, mobile: true });
+    ok(await noOverflow(), 'a populated box library fits a 320px phone');
+    await screenshot('phone-boxes');
+    await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+    await screenshot('desktop-boxes');
     ok((await run(`[...document.querySelectorAll('a.chip')].map((a) => a.href).join(' ')`)).includes('https://github.com/paolino/fido-box/blob/main/boxes/two.json') && (await run(`${q('#ghLine a')}.href`)) === 'https://github.com/paolino/fido-box/tree/main/boxes', 'the Boxes list links each GitHub box to its file, and the repository line to the folder');
     await run(`location.hash = '#/box/two'`); await sleep(300); await fill('#iName', 'Later'); await fill('#iUrl', 'https://example.net'); await fill('#iSecret', 's2'); await click('#addItem'); await sleep(500);
     await run(`location.hash = '#/'`); await sleep(300);
