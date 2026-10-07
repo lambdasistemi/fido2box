@@ -1,0 +1,48 @@
+{
+  "use-the-existing-skill": [
+    {
+      "text": "Use the existing system-design workflow from llm-settings. Operator rulings, formal behavior and a playable simulation must agree. A prose plan or a compiling file alone cannot close a design slice. Production conformance is a later handoff.",
+      "pause": 400
+    }
+  ],
+  "proposed-first-slice-replacing-a-box-safely": [
+    {
+      "text": "Start by proposing the replacement lifecycle: a person unlocks, pulls a box with another data key, then tries to save old plaintext. This bounded failure blocks safe richer-record delivery. Existing planning artifacts inform discussion but are not operator rulings.",
+      "pause": 400
+    }
+  ],
+  "decisions-before-a-model-is-frozen": [
+    {
+      "text": "Record the operator’s words and their precision. The first question is what should happen to unsaved edits when Pull replaces the box. Old state must not commit over the replacement. Resolve remaining stories one at a time before freezing their claims.",
+      "pause": 400
+    }
+  ],
+  "staffing-and-authority": [
+    {
+      "text": "This work prepares documents only. Before executing the formal loop, agree the roles, seats, models, concurrency, audit and budget. Model creation, independent simulation and independent audit have different responsibilities. No workers have been dispatched by this plan.",
+      "pause": 400
+    }
+  ],
+  "stage-and-evidence-plan": [
+    {
+      "text": "Freeze decisions and state the machine first. Audit statement completeness and reachable witnesses before proof work. Then prove or refute claims while a fresh creator builds the simulation from Lean alone. Audit the integrated result, let the operator play, publish the accepted slice, and hand an executable oracle and corpus to production conformance.",
+      "pause": 400
+    }
+  ],
+  "planned-artifacts-and-boundaries": [
+    {
+      "text": "Planned artifacts include a decision ledger, Lean machine and goals, mutation and witness ledgers, an executable oracle, a clarity record and a simulator inside the documentation. These are not existing deliverables. They do not prove cryptographic primitives or real hardware.",
+      "pause": 400
+    }
+  ],
+  "ready-to-start-ready-to-close": [
+    {
+      "text": "Preparation ends with an understandable baseline, proposed slice and recorded prerequisites. Starting requires operator decisions and a roster. Closure requires independent evidence, operator play, formal outcomes, simulation correspondence and publication.",
+      "pause": 400
+    }
+  ],
+  "_source": {
+    "file": "system-design-skill.md",
+    "sha256": "56e8defef5cd5210de702008b779c650d6159b159a79c598d20d08db88ab292c"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "renderer": "11.17.0",
+  "files": {
+    "docs/diagrams/box-data.mmd": "0bd89f2e858d123d7f566e511c43de03005372167ceeb626b22f46f7324020f5",
+    "docs/diagrams/box-data.svg": "286618de11cbf0385305da9c74dbf2657edbe3b4f67c6661f5f06517896c7979",
+    "docs/diagrams/box-lifecycle.mmd": "d7765e536b7915cf7548c468051b7cdc24fbf89b8d34370d37f75da49c7a45d4",
+    "docs/diagrams/box-lifecycle.svg": "00455b5bb5b0a764b0e854afa5f9496cfe3f0ba7ff62fde218ab309be5445908",
+    "docs/diagrams/config.json": "1717e3945b0c1c18090434cf45382216a3b1b9a9985284e078a91529eed3b9e7",
+    "docs/diagrams/design-loop.mmd": "4ecdda90a16e81b69c693d68bdb74981e322ea2687eb014bd0be868d5803cf23",
+    "docs/diagrams/design-loop.svg": "c4b29c061e0c35bea8c475af411eb33c9f484edfbeb6a7b7a401630c0110a3c0",
+    "docs/diagrams/design-roadmap.mmd": "fc49e4d6e30cd8a8021b3dc4ff0309693e89f2514282a3cd433ba2b5c2db7242",
+    "docs/diagrams/design-roadmap.svg": "fdd46f9f9f4e61f5d28c4779ec6cda38e97bb656a479a1a584bca4d86c483481",
+    "docs/diagrams/recovery-story.mmd": "ccb171aff5010caea64a95bf65d7e9e7b62718a0d11d5ef11dcd0250b243ff27",
+    "docs/diagrams/recovery-story.svg": "1242d78efb900d46dfa53f7f5843865615bd149fa1f9034e21e37bcbb58cba22",
+    "docs/diagrams/runtime-owners.mmd": "d780ce876b339fde71934fa71daeb25dfe47b6efc1b931c9b85594f587f652ee",
+    "docs/diagrams/runtime-owners.svg": "7b70a88eef261713068346894eead92909e179c26cbf79fd6a0141bd9220ed07",
+    "docs/diagrams/system-context.mmd": "21b599deeac079632c86789bf6e1f638039c35d52f68fee28c898c57eb1104d6",
+    "docs/diagrams/system-context.svg": "dec9a14125c93677bdec1956c30d781a00cc81fed0f3dbf8bb924ebb0a04f3ec",
+    "docs/diagrams/unlock-flow.mmd": "b63261cd7633e5269ea1a88981c55a086ce2026de81d635c0953abadf073af84",
+    "docs/diagrams/unlock-flow.svg": "515624d662fa492f067d6fe558cf59efa0c9777ab48601538b32a3633bc64ebe",
+    "flake.lock": "da806ab61fcd518ec47434bb18d602f35dc682a042f17333ad8c793b731b36f6",
+    "scripts/render-docs-diagrams.py": "c798eda038d51d2edf95e1c9320bff51c1093e3ec05bcc6d031e8d11e387ec2c"
+  }
+}

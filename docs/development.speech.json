@@ -1,0 +1,18 @@
+{
+  "system-design": [
+    {
+      "text": "The architecture retains its pinned pre-feature snapshot. Expressive records now use separate record, codec, envelope, storage, session, view, editor and clipboard modules, all included in strict JavaScript type checking. Browser regressions and twelve abstract proofs cover their documented boundaries. The work plan separately proposes an independently audited model and playable simulation; that formal slice has not started.",
+      "pause": 400
+    }
+  ],
+  "spec-driven-changes": [
+    {
+      "text": "Write the user outcome before implementation. Establish module owners before data and function models. Preserve legacy recovery material, keep private record fields encrypted, and verify browser effects and failure paths. The constitution governs these changes.",
+      "pause": 400
+    }
+  ],
+  "_source": {
+    "file": "development.md",
+    "sha256": "8e1db2a1a4987323edc76e1b7a4021a2d1ef8b3dccea786d9ec9a8ee9f7a002d"
+  }
+}

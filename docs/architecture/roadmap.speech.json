@@ -1,0 +1,36 @@
+{
+  "existing-records-to-preserve": [
+    {
+      "text": "Preserve the constitution, unresolved audit findings, expressive-record specification and merged plan, and the shipped identification behavior. Refresh their status before implementation. An open proposal is not a delivered guarantee.",
+      "pause": 400
+    }
+  ],
+  "order-of-work": [
+    {
+      "text": "Settle lifecycle decisions, make replacement safe, then finalize lossless record contracts. Integrity, real revocation and authenticator policy need explicit separate designs. Implement only after these records agree, keeping recovery compatibility and test evidence attached to each slice.",
+      "pause": 400
+    }
+  ],
+  "decisions-and-required-evidence": [
+    {
+      "text": "Safe replacement needs stale-operation counterexamples and atomic commit evidence. Migration needs legacy fixtures and recoverable backups. Integrity needs collection and metadata attacks. Revocation needs new keys and recovery procedures. Authenticator policy needs real support evidence. Recognition must not infer device identity from names.",
+      "pause": 400
+    }
+  ],
+  "state-machine-obligations": [
+    {
+      "text": "Model stored snapshots, unlocked sessions, pending operations and drafts separately. Old operations must not commit after replacement or lock. Failed writes must preserve recovery. Unknown records must not be silently lost. A model proof does not establish the behavior of the browser or production implementation.",
+      "pause": 400
+    }
+  ],
+  "delivery-gates": [
+    {
+      "text": "A design handoff needs consistent ownership, contracts, decisions and acceptance. Behavior delivery also needs failing regressions, successful fixes, browser and build checks, and verified publication. Design readiness is not deployment readiness.",
+      "pause": 400
+    }
+  ],
+  "_source": {
+    "file": "roadmap.md",
+    "sha256": "d535d37c18eca75aa1daa0043541424aa9a5c70d970c1e2d50c781141da20f11"
+  }
+}

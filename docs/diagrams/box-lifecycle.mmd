@@ -1,0 +1,9 @@
+stateDiagram-v2
+  direction TB
+  state "Stale session" as StaleSession
+  state "Damaged box" as DamagedBox
+  [*] --> Locked: Import
+  Locked --> Unlocked: Unlock
+  Unlocked --> Locked: Lock
+  Unlocked --> StaleSession: Pull replacement
+  StaleSession --> DamagedBox: Save stale plaintext
