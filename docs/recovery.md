@@ -34,10 +34,15 @@ establish that a key is empty. See the
 [WebAuthn privacy rules](https://www.w3.org/TR/webauthn-3/#sctn-privacy-considerations-client).
 
 Setup can ask for your PIN several times: creation, encryption-key derivation
-(when it cannot be combined with creation), writing access and verifying its
-readback are separate key operations. The app announces each stage. A normal
-**Use security key** connection uses one key operation; the browser and key
-control the actual PIN/touch prompts. No PIN is stored by the app.
+(when it cannot be combined with creation), writing access and checking its
+readback are separate key operations. The final check reads only encrypted data
+and uses the verified encryption secret from the write to check its exact
+contents. It does not request another PIN, although the browser or key may still
+require one or ask for a touch. The encryption secret is not kept after setup or
+renewal. The app announces each stage. A normal **Use security key** connection
+uses one key operation and requires verification. The browser and key control
+the actual PIN/touch prompts; reduced physical PIN counts have not been
+verified. No PIN is stored by the app.
 
 Setup creates a dedicated GitHub access credential. Renewal updates the
 credential selected during connection. Setting up another profile uses another

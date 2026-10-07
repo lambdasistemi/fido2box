@@ -33,6 +33,20 @@ export async function readAccess(signal,reference) {
   signal.throwIfAborted();
   return {access,reference:{id:a.id}};
 }
+// Ciphertext alone is not access: only saveAccess has the operation-local,
+// UV-verified PRF needed to authenticate this readback. Normal reads use readAccess.
+/** @param {AbortSignal} signal @param {string} id */
+async function readCiphertext(signal,id) {
+  signal.throwIfAborted();
+  const a=/** @type {PublicKeyCredential|null} */(await navigator.credentials.get({signal,publicKey:{rpId:RP,challenge:random(),timeout:60000,
+    allowCredentials:[{type:'public-key',id:unb64(id)}],userVerification:'discouraged',
+    extensions:/** @type {any} */({largeBlob:{read:true}})}}));
+  signal.throwIfAborted();
+  if(!a || b64(a.rawId)!==id || !(new Uint8Array(/** @type {AuthenticatorAssertionResponse} */(a.response).authenticatorData)[32]&1)) throw new Error('Ciphertext readback did not confirm the selected key and touch.');
+  const blob=/** @type {{largeBlob?:{blob?:ArrayBuffer}}} */(a.getClientExtensionResults()).largeBlob?.blob;
+  if(!blob)throw new Error('No ciphertext was read back.');
+  return blob;
+}
 /** @param {Access} access @param {AbortSignal} signal @param {Reference} [reference] @param {(stage:Stage)=>void} [progress] */
 export async function saveAccess(access,signal,reference,progress=()=>{}) {
   const text = encodeAccess(access);
@@ -66,8 +80,12 @@ export async function saveAccess(access,signal,reference,progress=()=>{}) {
   if (written.written !== true) throw new Error('The key did not confirm the write. GitHub access is not verified; check storage support or free space.');
   try {
     progress('verify');
-    const checked = await readAccess(signal,{id});
-    if (encodeAccess(checked.access) !== text) throw new Error('mismatch');
-    return checked;
+    const blob=await readCiphertext(signal,id);
+    // The write assertion already supplied a fresh PRF with verified UV.
+    // Reusing it also checks that it decrypts what the earlier PRF encrypted.
+    const checked=decodeAccess(await decryptText(written.prf,decodeEnvelope(blob)));
+    signal.throwIfAborted();
+    if (encodeAccess(checked) !== text) throw new Error('mismatch');
+    return {access:checked,reference:{id}};
   } catch { signal.throwIfAborted(); throw new Error('The key reported a write, but readback could not verify it. Connect with the key to check before relying on it.'); }
 }

@@ -6,7 +6,7 @@ module.exports=async({run,ok})=>{
     const create=navigator.credentials.create.bind(navigator.credentials),get=navigator.credentials.get.bind(navigator.credentials);
     const results=[];const check=async(name,f)=>{try{if(!await f())throw Error();results.push([true,name]);}catch{results.push([false,name]);}};
     const access={repo:'owner/recovery',token:'synthetic-token'},prf=new Uint8Array(32).fill(9).buffer,id=new Uint8Array([2]).buffer;
-    const flags=uv=>new Uint8Array([...new Array(32).fill(0),uv?4:0]).buffer;
+    const flags=uv=>new Uint8Array([...new Array(32).fill(0),uv?5:1]).buffer;
     let calls,blob;
     const install=({early=true,uv=true,hasData=true,length=32}={})=>{
       calls=[];blob=undefined;
@@ -15,11 +15,12 @@ module.exports=async({run,ok})=>{
         return {rawId:id,response:hasData?{getAuthenticatorData:()=>flags(uv)}:{},getClientExtensionResults:()=>({largeBlob:{supported:true},prf:{enabled:true,...(early&&options.publicKey.extensions.prf.eval?{results:{first:prf.slice(0,length)}}:{})}})};
       };
       navigator.credentials.get=async options=>{
-        if(options.publicKey.userVerification!=='required')throw Error('UV weakened');
         const ext=options.publicKey.extensions;
+        if(ext.prf||ext.largeBlob.write){if(options.publicKey.userVerification!=='required')throw Error('Secret or write UV weakened');}
+        else if(options.publicKey.userVerification!=='discouraged')throw Error('Ciphertext check requests unnecessary UV');
         calls.push(ext.largeBlob.write?'write':'read');
         if(ext.largeBlob.write)blob=ext.largeBlob.write.buffer;
-        return {rawId:id,response:{authenticatorData:flags(true),userHandle:C.enc.encode(ACCESS_PREFIX+'synthetic').buffer},getClientExtensionResults:()=>({prf:{results:{first:prf}},largeBlob:{blob,written:true}})};
+        return {rawId:id,response:{authenticatorData:flags(!!ext.prf),userHandle:C.enc.encode(ACCESS_PREFIX+'synthetic').buffer},getClientExtensionResults:()=>({...ext.prf?{prf:{results:{first:prf}}}:{},largeBlob:{blob,written:true}})};
       };
     };
     try{

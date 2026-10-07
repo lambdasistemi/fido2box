@@ -29,7 +29,7 @@
       "pause": 400
     },
     {
-      "text": "Setup can ask for your PIN several times: creation, encryption-key derivation (when it cannot be combined with creation), writing access and verifying its readback are separate key operations. The app announces each stage. A normal Use security key connection uses one key operation; the browser and key control the actual PIN/touch prompts. No PIN is stored by the app.",
+      "text": "Setup can ask for your PIN several times: creation, encryption-key derivation (when it cannot be combined with creation), writing access and checking its readback are separate key operations. The final check reads only encrypted data and uses the verified encryption secret from the write to check its exact contents. It does not request another PIN, although the browser or key may still require one or ask for a touch. The encryption secret is not kept after setup or renewal. The app announces each stage. A normal Use security key connection uses one key operation and requires verification. The browser and key control the actual PIN/touch prompts; reduced physical PIN counts have not been verified. No PIN is stored by the app.",
       "pause": 400
     },
     {
@@ -117,6 +117,6 @@
   ],
   "_source": {
     "file": "recovery.md",
-    "sha256": "455da904e57afc82cd1ab0083a99ac4d50925951e6eff2d08ebe62fb1bdb41c9"
+    "sha256": "e36d667361f6593a93b0e6c09e13c877a239894c09d4caa38319c7608ae8bcce"
   }
 }

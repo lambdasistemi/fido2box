@@ -9,9 +9,13 @@ module.exports=async({run,send,ok,base,open,click,fill,btn,until,auth,addRecord,
   await fill('#keyToken','synthetic-discard');await click('#cancelKeySetup');
   ok(await run("!document.querySelector('#keyToken') && document.activeElement.id==='setupKey' && !document.body.innerHTML.includes('synthetic-discard')"),'canceling setup drops the token form and restores focus');
   await click('#setupKey');
-  await run("{window.__setupKeyCalls=0;const create=navigator.credentials.create.bind(navigator.credentials),get=navigator.credentials.get.bind(navigator.credentials);navigator.credentials.create=async options=>{window.__setupKeyCalls++;const c=await create(options);window.__setupEarlyPRF=!!c.getClientExtensionResults().prf?.results?.first;return c;};navigator.credentials.get=options=>{window.__setupKeyCalls++;return get(options);};}");
+  await run("{window.__setupKeyCalls=0;const create=navigator.credentials.create.bind(navigator.credentials),get=navigator.credentials.get.bind(navigator.credentials);navigator.credentials.create=async options=>{window.__setupKeyCalls++;const c=await create(options);window.__setupEarlyPRF=!!c.getClientExtensionResults().prf?.results?.first;return c;};navigator.credentials.get=async options=>{window.__setupKeyCalls++;const verify=options.publicKey.extensions?.largeBlob?.read&&!options.publicKey.extensions?.prf;if(verify){options.publicKey.timeout=1500;await new Promise(resolve=>window.__resumeReadback=resolve);}const c=await get(options);if(verify)window.__readbackFlags=new Uint8Array(c.response.authenticatorData)[32];return c;};}");
   await fill('#keyRepo','owner/recovery');await fill('#keyToken','ghp_FAKE');await click('#saveKeyAccess');
+  const readbackPaused=await until('!!window.__resumeReadback');
+  if(readbackPaused){await send('WebAuthn.setUserVerified',{authenticatorId:key.authenticatorId,isUserVerified:false});await run('window.__resumeReadback()');}
   ok(await until("document.querySelector('#keyAccessStatus').textContent.includes('Saved on key and verified')"),'setup validates GitHub and writes and reads back encrypted access on a real virtual key');
+  await send('WebAuthn.setUserVerified',{authenticatorId:key.authenticatorId,isUserVerified:true});
+  ok(readbackPaused&&await run('(window.__readbackFlags&1)===1&&(window.__readbackFlags&4)===0'),'real virtual-key readback verifies exact saved access with user presence and no fresh user verification');
   ok(await run('window.__setupKeyCalls===(window.__setupEarlyPRF?3:4)'),'real virtual-key setup uses three ceremonies when creation returns PRF, four otherwise');
   const creds=await send('WebAuthn.getCredentials',{authenticatorId:key.authenticatorId});
   ok(creds.credentials.length===1&&!!creds.credentials[0].largeBlob&&!Buffer.from(creds.credentials[0].largeBlob,'base64').toString().includes('ghp_FAKE'),'the key holds ciphertext, not a plaintext token');
@@ -57,7 +61,7 @@ module.exports=async({run,send,ok,base,open,click,fill,btn,until,auth,addRecord,
     const original=navigator.credentials.get.bind(navigator.credentials),prf=new Uint8Array(32).fill(7).buffer;
     const handle=cryptoModule.enc.encode(C.ACCESS_PREFIX+'synthetic').buffer;
     const goodBlob=C.encodeEnvelope(await cryptoModule.encryptText(prf,C.encodeAccess(access))).buffer;
-    const answer=(options={})=>({rawId:new Uint8Array([1]).buffer,response:{authenticatorData:new Uint8Array([...new Array(32).fill(0),options.noUV?0:4]).buffer,userHandle:options.wrongHandle?cryptoModule.enc.encode('my label').buffer:handle},getClientExtensionResults:()=>({prf:options.noPRF?{}:{results:{first:prf}},largeBlob:{blob:options.corrupt?new Uint8Array([1]).buffer:goodBlob,written:options.written}})});
+    const answer=(options={})=>({rawId:new Uint8Array([1]).buffer,response:{authenticatorData:new Uint8Array([...new Array(32).fill(0),options.noUV?1:5]).buffer,userHandle:options.wrongHandle?cryptoModule.enc.encode('my label').buffer:handle},getClientExtensionResults:()=>({prf:options.noPRF?{}:{results:{first:prf}},largeBlob:{blob:options.corrupt?new Uint8Array([1]).buffer:goodBlob,written:options.written}})});
     try {
       for(const [name,options,expected]of [['wrong credential',{wrongHandle:true},'not GitHub access'],['missing PIN verification',{noUV:true},'verify your PIN'],['missing PRF',{noPRF:true},'PRF'],['corrupt profile',{corrupt:true},'damaged']]){
         await check(name+' is refused before connection',async()=>{navigator.credentials.get=async()=>answer(options);try{await readAccess(new AbortController().signal);return false;}catch(e){return e.message.includes(expected)&&!e.message.includes(access.token);}});

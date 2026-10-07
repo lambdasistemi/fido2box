@@ -17,7 +17,7 @@ export function createGitHubAccess(ports) {
     /** @param {import('./key-access.js').Stage} stage */
     const progress=stage=>{
       if(epoch!==generation||signal.aborted)return;
-      message={create:'Create GitHub access on the key. Enter its PIN and touch it when asked.',derive:'Prepare encryption. This key needs another PIN/touch request for its encryption secret.',write:'Save encrypted access on the key. Confirm the next PIN/touch request.',verify:'Verify saved access by reading it back. Confirm the final PIN/touch request.'}[stage];ports.change();
+      message={create:'Create GitHub access on the key. Enter its PIN and touch it when asked.',derive:'Prepare encryption. This key needs another PIN/touch request for its encryption secret.',write:'Save encrypted access on the key. Confirm the next PIN/touch request.',verify:'Final check of saved access. Touch the key if asked. This step does not request another PIN, although your browser or key may still require one.'}[stage];ports.change();
     };
     try {
       let result;

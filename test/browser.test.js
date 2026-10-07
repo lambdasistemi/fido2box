@@ -98,6 +98,7 @@ async function main() {
     ok(await run("!!document.querySelector('#connectKey') && !!document.querySelector('#setupKey')"), 'an empty library offers key-held GitHub connection and setup before opening a box');
     await require('./storage.browser.cjs')({ run, ok });
     await require('./key-access-choice.browser.cjs')({ run, ok });
+    await require('./key-access-readback.browser.cjs')({ run, ok });
     await require('./sessions.browser.cjs')({ run, ok });
     await require('./record-ui.browser.cjs')({ run, ok });
     ok(await has('No boxes yet'), 'a new browser has an empty library');

@@ -42,12 +42,18 @@ solo; independent model-reader and audit claims are unavailable in that mode.
   after authenticated decryption of the exact read-back payload. Request PRF
   evaluation during creation and reuse that output only after checking
   registration user verification. When it is unavailable, keep the separate
-  verified assertion. All assertions still require user verification, and
-  write/readback remain separate. Announce each operation before it starts. The
+  verified assertion. Creation, PRF acquisition, writing and later connections
+  require user verification. The final read requests ciphertext only, with user
+  verification discouraged and no PRF evaluation. Require the selected
+  credential and user presence, then authenticate and compare the payload using
+  the fresh, UV-verified PRF from the preceding write. Never cache that secret
+  across saves or connections. Write/readback remain separate. Announce each
+  operation before it starts. The
   [WebAuthn PRF contract](https://www.w3.org/TR/2026/REC-webauthn-3-20260825/#prf-extension)
   makes creation-time evaluation optional: three ceremonies on supporting
-  combinations, four otherwise. These are API calls, not a promised PIN count;
-  the browser and authenticator control their prompts.
+  combinations, four otherwise, with two or three requesting user verification.
+  These are API calls, not a promised PIN count; the browser and authenticator
+  control their prompts.
 - The session exposes connect, save, cancel/disconnect and a secret-free view.
   GitHub authorization is checked before provisioning, and before recovered
   access becomes the displayed connection. Failed network authentication can
