@@ -4,6 +4,7 @@ import { enc, b64, unb64, encryptText, decryptText } from './crypto.js';
 import { ACCESS_PREFIX, isAccessHandle, encodeAccess, decodeAccess, encodeEnvelope, decodeEnvelope } from './key-access-codec.js';
 /** @typedef {import('./key-access-codec.js').Access} Access */
 /** @typedef {{id:string}} Reference */
+/** @typedef {'create'|'derive'|'write'|'verify'} Stage */
 const random = () => crypto.getRandomValues(new Uint8Array(32));
 const salt = enc.encode('fido2box-github-access-v1');
 /** @param {AbortSignal} signal @param {string} [id] @param {Uint8Array} [write] */
@@ -32,27 +33,39 @@ export async function readAccess(signal,reference) {
   signal.throwIfAborted();
   return {access,reference:{id:a.id}};
 }
-/** @param {Access} access @param {AbortSignal} signal @param {Reference} [reference] */
-export async function saveAccess(access,signal,reference) {
+/** @param {Access} access @param {AbortSignal} signal @param {Reference} [reference] @param {(stage:Stage)=>void} [progress] */
+export async function saveAccess(access,signal,reference,progress=()=>{}) {
   const text = encodeAccess(access);
   let id = reference?.id;
+  /** @type {BufferSource|undefined} */ let prf;
   if (!id) {
     signal.throwIfAborted();
+    progress('create');
     const c = /** @type {PublicKeyCredential|null} */(await navigator.credentials.create({signal,publicKey:{rp:{id:RP,name:'fido2box'},
       user:{id:enc.encode(ACCESS_PREFIX+crypto.randomUUID()),name:'GitHub access: '+access.repo,displayName:'GitHub access: '+access.repo},
       challenge:random(),pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],timeout:60000,
       authenticatorSelection:{authenticatorAttachment:'cross-platform',residentKey:'required',requireResidentKey:true,userVerification:'required'},
-      extensions:/** @type {any} */({prf:{},largeBlob:{support:'required'}})}}));
+      extensions:/** @type {any} */({prf:{eval:{first:salt}},largeBlob:{support:'required'}})}}));
     signal.throwIfAborted();
     const ext = /** @type {any} */(c?.getClientExtensionResults());
     if (!c || !ext?.prf?.enabled || !ext?.largeBlob?.supported) throw new Error('This browser/key cannot store GitHub access: discoverable credentials, PRF and largeBlob are required.');
+    const response=/** @type {AuthenticatorAttestationResponse} */(c.response);
+    const authData=response.getAuthenticatorData?.();
+    if(authData && !(new Uint8Array(authData)[32]&4)) throw new Error('The key did not verify your PIN.');
+    const early=ext.prf.results?.first;
+    if(early!==undefined && (!(early instanceof ArrayBuffer)&&!ArrayBuffer.isView(early)||early.byteLength!==32)) throw new Error('The key returned an invalid PRF encryption result.');
+    // Creation-time evaluation is optional. Never use it without verified UV,
+    // and do not retain this encryption secret beyond the current save.
+    if(authData && early)prf=early;
     id = b64(c.rawId);
   }
-  const a = await assertion(signal,id);
-  const blob = encodeEnvelope(await encryptText(a.prf,text));
+  if(!prf){progress('derive');prf=(await assertion(signal,id)).prf;}
+  const blob = encodeEnvelope(await encryptText(prf,text));
+  progress('write');
   const written = await assertion(signal,id,blob);
   if (written.written !== true) throw new Error('The key did not confirm the write. GitHub access is not verified; check storage support or free space.');
   try {
+    progress('verify');
     const checked = await readAccess(signal,{id});
     if (encodeAccess(checked.access) !== text) throw new Error('mismatch');
     return checked;

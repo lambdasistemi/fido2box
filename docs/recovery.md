@@ -26,6 +26,12 @@ reported without claiming that recovery is ready. Token expiry or revocation
 still requires a new token from GitHub: connect with the key, then choose
 **Renew access**. A cancelled request cannot determine whether a key is empty.
 
+Setup can ask for your PIN several times: creation, encryption-key derivation
+(when it cannot be combined with creation), writing access and verifying its
+readback are separate key operations. The app announces each stage. A normal
+**Connect with security key** uses one key operation; the browser and key
+control the actual PIN/touch prompts. No PIN is stored by the app.
+
 Setup creates a dedicated GitHub access credential. Renewal updates the
 credential selected during connection. Setting up another profile uses another
 resident credential slot. Resetting the key erases its profile. Configure spare

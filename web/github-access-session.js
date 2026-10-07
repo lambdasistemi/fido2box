@@ -13,10 +13,15 @@ export function createGitHubAccess(ports) {
   /** @param {Access} [input] */
   async function execute(input) {
     if(!input)reference=undefined;
-    cancel(); const generation=epoch, signal=controller.signal; busy=true; connected=null;ports.publish(null);message='Waiting for your key. Enter its PIN and touch it when asked.';ports.change();
+    cancel(); const generation=epoch, signal=controller.signal; busy=true; connected=null;ports.publish(null);message=input?'Checking GitHub access before saving to the key.':'Waiting for your key. Enter its PIN and touch it when asked.';ports.change();
+    /** @param {import('./key-access.js').Stage} stage */
+    const progress=stage=>{
+      if(epoch!==generation||signal.aborted)return;
+      message={create:'Create GitHub access on the key. Enter its PIN and touch it when asked.',derive:'Prepare encryption. This key needs another PIN/touch request for its encryption secret.',write:'Save encrypted access on the key. Confirm the next PIN/touch request.',verify:'Verify saved access by reading it back. Confirm the final PIN/touch request.'}[stage];ports.change();
+    };
     try {
       let result;
-      if(input) { encodeAccess(input);await validate(input,signal);signal.throwIfAborted(); result=await (ports.save||saveAccess)(input,signal,reference); }
+      if(input) { encodeAccess(input);await validate(input,signal);signal.throwIfAborted(); result=await (ports.save||saveAccess)(input,signal,reference,progress); }
       else result=await (ports.read||readAccess)(signal);
       signal.throwIfAborted();if(epoch!==generation)return;
       reference=result.reference;

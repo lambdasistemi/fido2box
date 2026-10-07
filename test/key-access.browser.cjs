@@ -4,13 +4,15 @@ module.exports=async({run,send,ok,base,open,click,fill,btn,until,auth,addRecord,
   const key=await auth({hasResidentKey:true,hasLargeBlob:true});
   const wipe=async()=>{await send('Page.navigate',{url:'about:blank'});await until("location.href==='about:blank'");await send('Storage.clearDataForOrigin',{origin:base.slice(0,-1),storageTypes:'all'});};
   await wipe();
-  await open();await click('#setupKey');
+  await open();await require('./key-access-prompts.browser.cjs')({run,ok});await click('#setupKey');
   ok(await run("document.querySelector('#keyToken').type==='password' && !!document.querySelector('label[for=keyToken]')"),'setup is masked and labeled before any box exists');
   await fill('#keyToken','synthetic-discard');await click('#cancelKeySetup');
   ok(await run("!document.querySelector('#keyToken') && document.activeElement.id==='setupKey' && !document.body.innerHTML.includes('synthetic-discard')"),'canceling setup drops the token form and restores focus');
   await click('#setupKey');
+  await run("{window.__setupKeyCalls=0;const create=navigator.credentials.create.bind(navigator.credentials),get=navigator.credentials.get.bind(navigator.credentials);navigator.credentials.create=async options=>{window.__setupKeyCalls++;const c=await create(options);window.__setupEarlyPRF=!!c.getClientExtensionResults().prf?.results?.first;return c;};navigator.credentials.get=options=>{window.__setupKeyCalls++;return get(options);};}");
   await fill('#keyRepo','owner/recovery');await fill('#keyToken','ghp_FAKE');await click('#saveKeyAccess');
   ok(await until("document.querySelector('#keyAccessStatus').textContent.includes('Saved on key and verified')"),'setup validates GitHub and writes and reads back encrypted access on a real virtual key');
+  ok(await run('window.__setupKeyCalls===(window.__setupEarlyPRF?3:4)'),'real virtual-key setup uses three ceremonies when creation returns PRF, four otherwise');
   const creds=await send('WebAuthn.getCredentials',{authenticatorId:key.authenticatorId});
   ok(creds.credentials.length===1&&!!creds.credentials[0].largeBlob&&!Buffer.from(creds.credentials[0].largeBlob,'base64').toString().includes('ghp_FAKE'),'the key holds ciphertext, not a plaintext token');
   ok(await run("!document.body.innerHTML.includes('ghp_FAKE') && !JSON.stringify(localStorage).includes('ghp_FAKE')"),'setup clears token input and never persists it in browser storage');
