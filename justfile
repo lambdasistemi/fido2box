@@ -28,13 +28,16 @@ lint:
 build-docs:
     mkdocs build --strict
 
+proofs:
+    bash scripts/check-record-proofs.sh
+
 serve-docs:
     mkdocs serve --dev-addr 127.0.0.1:8001
 
 serve:
     python3 -m http.server 8000 --bind 127.0.0.1 --directory web
 
-ci: typecheck unit browser format-check lint build-docs
+ci: typecheck unit browser format-check lint build-docs proofs
 
 build:
     nix build .#site

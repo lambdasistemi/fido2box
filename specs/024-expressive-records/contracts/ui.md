@@ -32,6 +32,15 @@ alone never changes a value. Render-only transformations must not feed back into
 drafts. Reveal is not the same operation as changing the persisted hidden
 toggle.
 
+New or replacement secret entry starts masked with Show/Hide. Optional double
+entry starts off; enabling it opens an empty masked confirmation with its own
+Show/Hide. Compare exact strings after either input changes. An enabled mismatch
+blocks Save with an associated non-secret message; disabling confirmation allows
+normal validation. Clear confirmation and reveal state on Save, Cancel, removal,
+departure, or lock. Never serialize confirmation. For multiline secret entry,
+mask the editor visually without changing its value; test input, selection,
+paste, reveal, and keyboard access rather than relying on a single-line input.
+
 All anchors use a separate browsing context with noopener/noreferrer. Preserve
 the existing parser-based HTTPS / loopback HTTP URL policy, including normalized
 loopback aliases; do not invent a second URL recognizer in the editor. No

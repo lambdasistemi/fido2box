@@ -153,6 +153,15 @@ entries with original positions, and validation state. DraftChange covers title,
 add/update/remove/undo by ID. UI state separately owns revealed IDs, explicitly
 replacing IDs, active record, focus target, and session generation.
 
+The draft owns optional confirmations by field ID: exact second-entry strings,
+initially empty when enabled. They are never populated from the first entry.
+DraftChange additionally supports confirmation(fieldId, value), where null
+disables it. Validation compares enabled entries exactly with the candidate;
+finishDraft returns only the RecoveryRecord, not confirmations or undo state.
+Removing a field drops its confirmation; Undo restores the field, not the
+confirmation. Cancel, save, departure and lock discard confirmation state.
+Independent reveal choices for entry and confirmation belong to presentation.
+
 Untouched values remain original strings regardless of control rendering. A
 deliberate value input replaces only that value with the browser input string.
 For CR/CRLF imports, show a line-ending warning before editing; revealing alone

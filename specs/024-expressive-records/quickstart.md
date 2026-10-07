@@ -29,7 +29,8 @@ authenticator. That is not a real-hardware interoperability test.
 
 1. Create a titled record with Account, two Website fields, hidden recovery key,
    hidden multiline codes, Notes, and duplicate-name custom fields. Also test
-   zero fields, empty values, and the 20-field/10,000-character baseline.
+   zero fields, empty values, and the 20-field/10,000-character baseline. A
+   secret-only record and an empty Website must save without an address error.
 2. Rename/change kind/change hiding/remove/undo/cancel/save. Compare exact
    stored strings and order after lock/reload/unlock; use CR/LF/CRLF and Unicode
    fixtures.
@@ -41,6 +42,10 @@ authenticator. That is not a real-hardware interoperability test.
 5. Use keyboard only and 320-pixel layouts in both themes. Check focus
    restoration and dirty-draft guards for tab/record/hash changes and browser
    Back/Forward.
+6. Type and reveal/re-hide a new secret. Enable optional confirmation: it starts
+   empty, checks exact equality after either edit, and can be disabled. Test
+   whitespace/newline mismatches, independent reveal, keyboard/phone controls,
+   removal/undo, and no confirmation in saved/exported data or after lock.
 
 ## Compatibility and failure acceptance
 

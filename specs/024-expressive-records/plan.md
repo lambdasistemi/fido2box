@@ -1,6 +1,6 @@
 # Implementation Plan: Expressive recovery records
 
-**Branch**: `docs/expressive-records-plan` | **Date**: 2026-10-07 **Spec**:
+**Branch**: `feat/expressive-records` | **Date**: 2026-10-07 **Spec**:
 [spec.md](spec.md) | **Issue**:
 [#26](https://github.com/lambdasistemi/fido2box/issues/26) **Constitution**:
 1.1.0 | **Feature ID**: 024-expressive-records
@@ -9,9 +9,9 @@
 
 - Completed: specification merged in #25; read-only format/UI research; modules
   model authored before data/functions; compatibility and UI contracts.
-- Current: planning review. No feature code or tests implemented.
-- Next: acceptance-linked tasks, cross-artifact analysis, invariant
-  formalization.
+- Current: solo delivery; approved plan merged in #29. See [tasks](tasks.md).
+- Next: test-first implementation; task review and abstract proofs completed.
+- Feedback: no required URL; optional exact double entry and temporary reveal.
 - Release blocker: stale-Pull subset of
   [#16](https://github.com/lambdasistemi/fido2box/issues/16). Task generation
   must schedule its regression/fix before rich-record enablement. This plan does
@@ -68,7 +68,7 @@ evidence):
       applicable.
 - [x] No runtime dependency, crypto construction, origin, CI-runner, provenance,
       or Nix-toolchain change is proposed.
-- [ ] Before implementation: tasks and consistency analysis must cover I1–I6;
+- [x] Before implementation: tasks and consistency analysis must cover I1–I6;
       formal state-transition obligations require proof/review per the design
       workflow.
 - [ ] Before release: actual failure-then-success evidence for stale Pull and
@@ -85,7 +85,7 @@ specs/024-expressive-records/
   data-model.md, functions-model.md, quickstart.md
   contracts/record-format.md, contracts/ui.md
   checklists/requirements.md
-  tasks.md                         (next phase, not generated here)
+  tasks.md                         (delivery checklist and proof/test mapping)
 web/
   records.js, record-codec.js, box-format.js
   box-session.js, record-session.js, clipboard.js
@@ -155,7 +155,8 @@ Behavior delivery: quickstart acceptance, full `just ci`, flake checks,
 built-site smoke, and actual CI. Include served new module assets in smoke
 checks.
 
-No `update-agent-context.sh` is installed in this repository; conditional
+Proof tooling uses Lean 4.25 from the existing locked docs nixpkgs input. No
+`update-agent-context.sh` is installed in this repository; conditional
 invocation confirmed absence. There is no new technology to record, so no
 replacement agent configuration is invented. No planning hooks are configured.
 

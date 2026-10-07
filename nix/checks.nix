@@ -9,6 +9,7 @@
 let
   commands = {
     typecheck = "tsc -p tsconfig.json";
+    proofs = "bash scripts/check-record-proofs.sh";
     unit = "node test/box.test.js && node test/tooling.test.cjs";
     browser = "node test/browser.test.js";
     format-check = "bash scripts/format-check.sh";

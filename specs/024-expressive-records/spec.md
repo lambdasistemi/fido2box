@@ -88,7 +88,10 @@ unlock it using an enrolled test authenticator.
    changes; cancelling the edit leaves the saved record unchanged.
 3. **Given** a new record, **When** it contains only named recovery instructions
    and no URL or password, **Then** it saves successfully. Empty field values
-   are retained; blank titles or field names fail with an associated error.
+   are retained; blank titles or field names fail with an associated error. In
+   particular, a secret-only record and a record with an empty Website field
+   save and reopen without the old required-address error; neither creates a
+   link.
 4. **Given** two fields with the same label, **When** I edit, remove, or copy
    one, **Then** the other remains unchanged and controls identify their field
    by its position as well as its label.
@@ -118,10 +121,20 @@ codes, and visible and hidden URLs; exercise each action independently.
    masked with no active link or URL in tooltips or accessible names. Explicit
    Reveal permits navigation; Hide, leaving the record, or locking resets reveal
    state.
-4. **Given** a denied clipboard operation, **When** I copy, **Then** failure is
+
+4. **Given** a secret being created or replaced, **When** I type, **Then** I can
+   Show or Hide the entry without changing its saved concealment setting.
+   Optional double entry is off by default. Enabling it creates an empty,
+   independently revealable confirmation; it never copies the first value.
+5. **Given** enabled double entry, **When** either entry changes, **Then** Save
+   requires exact equality, including spaces and line breaks, with a non-secret
+   mismatch message. I can correct either entry or disable confirmation. Save,
+   Cancel, field removal, departure, and lock clear confirmation and reveal
+   state; confirmation is never stored, exported, or synchronized.
+6. **Given** a denied clipboard operation, **When** I copy, **Then** failure is
    announced without the value and without claiming success. On successful copy,
    guidance describes clearing as best effort, not guaranteed erasure.
-5. **Given** a concealed field in an existing record, **When** I enter editing,
+7. **Given** a concealed field in an existing record, **When** I enter editing,
    **Then** it stays concealed until I deliberately reveal or replace its value;
    saving or cancelling closes editing without persisting temporary reveal
    state.
@@ -216,6 +229,9 @@ unlock again.
   status announcements, and usable 320-pixel layouts (Story 2 and edge cases).
 - **FR-012**: Update the user guide in the implementation delivery to explain
   field kinds, hiding, links, copying, migration, and recovery limitations.
+- **Optional secret confirmation**: Offer Show/Hide during secret entry and
+  optional exact double entry, following Stories 2.6–2.7. Confirmation is
+  transient editor state, never a second persisted field or a mandatory step.
 
 ### Privacy, Recovery, and Interaction Requirements _(mandatory assessment)_
 

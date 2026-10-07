@@ -20,7 +20,9 @@ Unchanged call surfaces and implementation-private helpers are omitted.
 
 SuggestionName is the closed set Account, Password or recovery key, Website,
 Backup codes, Notes. Empty new drafts use createRecord with a supplied ID;
-invalid draft titles may exist transiently but cannot be saved.
+invalid draft titles may exist transiently but cannot be saved. Optional double
+entry uses changeDraft confirmation changes; validateDraft and finishDraft
+reject mismatches without including either secret in errors.
 
 ## `web/record-codec.js`
 
@@ -126,7 +128,9 @@ View actions: copy(fieldId): Promise<void>, reveal(fieldId): void,
 hide(fieldId): void, edit(): void. Editor actions: change(change): void,
 reveal(fieldId): void, hide(fieldId): void, replace(fieldId): void, save():
 Promise<void>, cancel(): void. Arguments use the corresponding D1/D6 types;
-callbacks own effects outside views.
+callbacks own effects outside views. Editor actions also expose
+revealConfirmation(fieldId): void and hideConfirmation(fieldId): void;
+confirmation changes use change(change).
 
 ## `web/record-session.js`
 
