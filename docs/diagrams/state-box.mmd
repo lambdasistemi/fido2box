@@ -1,0 +1,8 @@
+stateDiagram-v2
+    direction TB
+    state "No local file" as Absent
+    state "File here, locked" as Locked
+    state "File here, open" as Open
+    Absent --> Locked: Import / Pull
+    Locked --> Open: Unlock
+    Open --> Locked: Lock / Pull

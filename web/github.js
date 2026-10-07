@@ -17,23 +17,23 @@ const API = 'https://api.github.com/repos/';
 
 /**
  * Names of the boxes in the repository (an empty list when the folder does not exist yet).
- * @param {string} repo owner/name @param {string} token @param {Fetch} [f] @returns {Promise<string[]>}
+ * @param {string} repo owner/name @param {string} token @param {Fetch} [f] @param {AbortSignal} [signal] @returns {Promise<string[]>}
  */
-export async function listRemote(repo, token, f) {
+export async function listRemote(repo, token, f, signal) {
   const get = f || fetch;
-  const r = await get(API + repo + '/contents/boxes', { headers: ghHeaders(token), cache: 'no-store' });
-  if (r.status === 404) { const root = await get(API + repo, { headers: ghHeaders(token), cache: 'no-store' }); if (root.status === 200) return []; throw ghFail(404); }
+  const r = await get(API + repo + '/contents/boxes', { headers: ghHeaders(token), cache: 'no-store', signal });
+  if (r.status === 404) { const root = await get(API + repo, { headers: ghHeaders(token), cache: 'no-store', signal }); if (root.status === 200) return []; throw ghFail(404); }
   if (r.status !== 200) throw ghFail(r.status);
   /** @type {{ type: string, name: string }[]} */ const entries = await r.json();
   return entries.filter((e) => e.type === 'file' && /\.json$/.test(e.name) && NAME_RE.test(e.name.replace(/\.json$/, ''))).map((e) => e.name.replace(/\.json$/, ''));
 }
 /**
  * The box called `name`, parsed, or null when it is not there.
- * @param {string} repo @param {string} token @param {string} name @param {Fetch} [f] @returns {Promise<import('./box-format.js').SourceDocument | null>}
+ * @param {string} repo @param {string} token @param {string} name @param {Fetch} [f] @param {AbortSignal} [signal] @returns {Promise<import('./box-format.js').SourceDocument | null>}
  */
-export async function fetchRemote(repo, token, name, f) {
+export async function fetchRemote(repo, token, name, f, signal) {
   const get = f || fetch;
-  const r = await get(API + repo + '/contents/boxes/' + name + '.json', { headers: ghHeaders(token), cache: 'no-store' });
+  const r = await get(API + repo + '/contents/boxes/' + name + '.json', { headers: ghHeaders(token), cache: 'no-store', signal });
   if (r.status === 404) return null;
   if (r.status !== 200) throw ghFail(r.status);
   const cur = await r.json();
@@ -44,15 +44,15 @@ export async function fetchRemote(repo, token, name, f) {
 /**
  * Write `path` (default box.json) in `repo` with one commit. Refuses to replace a box whose rev is the same or higher.
  * @param {string} repo @param {string} token @param {string} text the file @param {number} rev
- * @param {Fetch} [f] @param {string} [path]
+ * @param {Fetch} [f] @param {string} [path] @param {AbortSignal} [signal]
  * @returns {Promise<string>} the commit sha, or 'unchanged'
  */
-export async function saveToGitHub(repo, token, text, rev, f, path) {
+export async function saveToGitHub(repo, token, text, rev, f, path, signal) {
   const get = f || fetch;
   const url = API + repo + '/contents/' + (path || 'box.json'), h = ghHeaders(token);
   /** @param {string} name @param {string} msg @param {object} [extra] */
   const fail = (name, msg, extra) => Object.assign(new Error(msg), { name }, extra);
-  const g = await get(url, { headers: h, cache: 'no-store' });
+  const g = await get(url, { headers: h, cache: 'no-store', signal });
   /** @type {string | undefined} */ let sha;
   if (g.status === 200) {
     const cur = await g.json(); sha = cur.sha;
@@ -62,7 +62,8 @@ export async function saveToGitHub(repo, token, text, rev, f, path) {
     if (!inspectBox(remote).writable) throw fail('UnsupportedRemote', 'The remote format cannot safely be overwritten.');
     if (remote && (remote.rev || 0) >= rev) throw fail('RemoteNewer', 'newer', { rev: remote.rev || 0 });
   } else if (g.status !== 404) throw fail(g.status === 401 || g.status === 403 ? 'BadToken' : 'GitHubError', 'github ' + g.status);
-  const p = await get(url, { method: 'PUT', headers: { ...h, 'Content-Type': 'application/json' },
+  signal?.throwIfAborted();
+  const p = await get(url, { method: 'PUT', signal, headers: { ...h, 'Content-Type': 'application/json' },
     body: JSON.stringify({ message: 'box rev ' + rev, content: b64(enc.encode(text)), ...(sha ? { sha } : {}) }) });
   if (!p.ok) throw fail(ghName(p.status), 'github ' + p.status);
   return (await p.json()).commit.sha;

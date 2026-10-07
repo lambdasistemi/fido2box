@@ -13,13 +13,13 @@ MARKER = re.compile(r"^<!-- diagram: ([\w-]+) -->$", re.MULTILINE)
 
 
 def on_pre_build(config):
-    subprocess.run([sys.executable, str(ROOT / "tools/check_presentation.py"), "--front", "docs/index.md", "docs/index.md", "docs/development.md", "docs/architecture"], cwd=ROOT, check=True)
+    subprocess.run([sys.executable, str(ROOT / "tools/check_presentation.py"), "--front", "docs/index.md", "docs/index.md", "docs/development.md", "docs/architecture", "docs/state.md", "docs/recovery.md"], cwd=ROOT, check=True)
     manifest = json.loads((ROOT / "docs/diagrams/manifest.json").read_text())
     for filename, digest in manifest["files"].items():
         path = ROOT / filename
         if hashlib.sha256(path.read_bytes()).hexdigest() != digest:
             raise ValueError("Stale diagram input/output: " + filename)
-    pages = [ROOT / "docs/index.md", *sorted((ROOT / "docs/architecture").glob("*.md"))]
+    pages = sorted((ROOT / "docs").rglob("*.md"))
     for page in pages:
         for name in MARKER.findall(page.read_text()):
             for suffix in ("mmd", "svg"):

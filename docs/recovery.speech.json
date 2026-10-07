@@ -1,0 +1,122 @@
+{
+  "recovery-and-backups": [
+    {
+      "text": "Recovery and backups.",
+      "pause": 500
+    },
+    {
+      "text": "Keep the information you will need after losing a device together, then rehearse recovering it from an encrypted file and a spare enrolled key.",
+      "pause": 400
+    },
+    {
+      "text": "Open the app at https://fido2box.dev/ and create a box with a compatible security key. Keep a separate backup key and enroll it while the box is open.",
+      "pause": 300
+    },
+    {
+      "text": "Add the recovery items you need. Download the encrypted JSON file and keep a copy outside this browser. The key alone cannot recreate the box file.",
+      "pause": 300
+    },
+    {
+      "text": "On Boxes, open First time with this key?, then choose Set up GitHub access on this key to store GitHub access encrypted on your key. Enter the repository and a fine-grained token limited to that repository with Contents read/write. Follow each PIN/touch prompt until the app confirms it read the saved access back. Push your boxes from Sync; local changes are not automatically backed up.",
+      "pause": 300
+    },
+    {
+      "text": "Test recovery in another browser: choose Use security key, select the GitHub access credential, then Pull a listed box from Sync. Unlock with an enrolled key and verify the required items are present. You can also import a downloaded backup without GitHub access.",
+      "pause": 300
+    },
+    {
+      "text": "GitHub access is stored separately from the box, so fetching the box never requires opening it. The key needs discoverable credentials, PRF and largeBlob support, and the browser must expose all three. A failed or unsupported setup is reported without claiming that recovery is ready. Token expiry or revocation still requires a new token from GitHub: connect with the key, then choose Renew access. The app promotes renewal when it has read a profile whose token GitHub refuses. If no access is returned, it offers Try key again and explains the optional setup path. It never automatically creates a profile after a failed or cancelled read. Browser privacy rules do not reliably distinguish cancellation, timeout and no matching credential; an unanswered request cannot establish that a key is empty. See the WebAuthn privacy rules.",
+      "pause": 400
+    },
+    {
+      "text": "Setup can ask for your PIN several times: creation, encryption-key derivation (when it cannot be combined with creation), writing access and checking its readback are separate key operations. The final check reads only encrypted data and uses the verified encryption secret from the write to check its exact contents. It does not request another PIN, although the browser or key may still require one or ask for a touch. The encryption secret is not kept after setup or renewal. The app announces each stage. A normal Use security key connection uses one key operation and requires verification. The browser and key control the actual PIN/touch prompts; reduced physical PIN counts have not been verified. No PIN is stored by the app.",
+      "pause": 400
+    },
+    {
+      "text": "Setup creates a dedicated GitHub access credential. Renewal updates the credential selected during connection. Setting up another profile uses another resident credential slot. Resetting the key erases its profile. Configure spare keys separately; enrolling a key in a box does not copy GitHub access onto it.",
+      "pause": 400
+    },
+    {
+      "text": "The key-held access design describes the storage format, encryption domain and cancellation boundaries.",
+      "pause": 400
+    },
+    {
+      "text": "Credentials belong to the original domain. A rehearsal at http://localhost creates different credentials. Renew the production domain and preserve the box files: rebuilding the app on the original domain is possible; recreating a lost box is not.",
+      "pause": 400
+    },
+    {
+      "text": "Removing a key does not rotate the data key. Someone with an old copy and the removed key can also decrypt future contents encrypted under that same data key. For revocation, create a new box with retained keys and fresh encryption. This does not erase information already exposed in old copies.",
+      "pause": 400
+    },
+    {
+      "text": "Pull clears the unlocked session and any discarded draft before replacing the box. Unlock the fetched copy before editing it. Conflicting writes from another tab are refused; unlock the current copy and try again. Keep downloaded backups before synchronization. The broader findings in issue #16 remain open.",
+      "pause": 400
+    }
+  ],
+  "record-the-values-you-need": [
+    {
+      "text": "Record the values you need.",
+      "pause": 500
+    },
+    {
+      "text": "Choose New record, give it a title and add fields. Account, Password or recovery key, Website, Backup codes and Notes are optional starting points. A custom field starts hidden. Choose text, multiline or URL independently of its hiding setting. Names may repeat; each control includes the field's position. Empty values and title-only records are valid.",
+      "pause": 400
+    },
+    {
+      "text": "Each value has Copy, including hidden and empty values. Visible URL values link only to HTTPS or loopback HTTP for rehearsal; invalid or blank addresses can be saved and copied but do not navigate. Plain text never becomes a link by itself. Reveal and Hide are temporary and independent for each field.",
+      "pause": 400
+    },
+    {
+      "text": "In Edit, existing hidden values stay absent from controls until you choose Reveal or Replace. Replace starts an empty buffer. Secret entry offers Show/Hide and optional Confirm this value. Confirmation begins empty, compares spaces and line breaks exactly, and can be disabled. It is never exported or saved. Remove field offers Undo until Save. Cancel leaves the saved record intact; navigation asks before discarding changes, while Lock discards immediately.",
+      "pause": 400
+    },
+    {
+      "text": "Untouched imported CR/CRLF text remains exact, even after Reveal or a title edit. Deliberately editing that value uses the browser's LF line endings; a warning appears before the control. A failed save leaves the draft available and the previous saved source unchanged.",
+      "pause": 400
+    }
+  ],
+  "open-older-or-unfamiliar-files": [
+    {
+      "text": "Open older or unfamiliar files.",
+      "pause": 500
+    },
+    {
+      "text": "Legacy notes retain their complete text. Legacy title/address/secret records become fields, preserving empty titles and values. Opening, copying, downloading and synchronizing do not migrate the format. The first content, key or token edit asks permission to write v3 and requires a verified encrypted backup first. If backup storage fails, saving is refused.",
+      "pause": 400
+    },
+    {
+      "text": "Older releases cannot safely edit v3 files. The retained original recovers only pre-migration data. Boxes and Sync list Retained backups, including deleted box names, with encrypted downloads. Both databases live in the same browser: download an external copy against browser-data loss.",
+      "pause": 400
+    },
+    {
+      "text": "Unknown envelope or record data makes the box read-only. Supported sibling records remain viewable and copyable; the original encrypted file remains downloadable and can be pushed without reconstruction. Push refuses to overwrite an unfamiliar or malformed remote envelope. This is a format check, not an authentication of remote revision metadata or unseen encrypted payloads.",
+      "pause": 400
+    }
+  ],
+  "recognizing-a-key-and-choosing-its-name": [
+    {
+      "text": "Recognizing a key and choosing its name.",
+      "pause": 500
+    },
+    {
+      "text": "Choose Identify my key when creating a box or adding a key. The app checks credentials in local boxes, including locked boxes, and GitHub boxes already loaded in the current session. You do not need to unlock them. If the backup is not available here yet, import its JSON file first. GitHub boxes that need an unavailable token cannot be searched.",
+      "pause": 400
+    },
+    {
+      "text": "A recognized credential reuses its existing nickname. Creating or adding it requires a fresh PIN/touch confirmation from that same key. If identification is cancelled or finds no match, the app cannot conclude that the hardware is new: retry or import the missing box.",
+      "pause": 400
+    },
+    {
+      "text": "For a key not registered in the available boxes, choose Use an unregistered key. Its nickname is optional; the app supplies a name such as “Security key 1” when blank. Nicknames are public descriptions stored with the box, not passwords and not labels written onto the hardware. Manual enrollment refuses known hardware so it cannot silently acquire another nickname.",
+      "pause": 400
+    },
+    {
+      "text": "The optional hardware label on the Security keys page is separate. Reading one suggests a nickname; it is not proof of identity and never renames existing box entries. Older boxes may already use several credentials or nicknames for the same hardware. The app preserves these records; it cannot infer physical key identity from names alone.",
+      "pause": 400
+    }
+  ],
+  "_source": {
+    "file": "recovery.md",
+    "sha256": "e36d667361f6593a93b0e6c09e13c877a239894c09d4caa38319c7608ae8bcce"
+  }
+}

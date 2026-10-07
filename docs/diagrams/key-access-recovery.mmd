@@ -1,0 +1,10 @@
+flowchart TB
+  key[Configured security key]
+  browser[Empty browser]
+  github[GitHub repository]
+  box[Encrypted box in browser]
+  records[Recovery records]
+  key -->|PIN and touch: decrypt stored access| browser
+  browser -->|Use repository and token| github
+  github -->|Explicit Pull| box
+  box -->|Unlock with an enrolled key| records

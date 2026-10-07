@@ -1,0 +1,6 @@
+stateDiagram-v2
+    direction TB
+    state "Browser has app data" as Known
+    state "Empty browser state" as Empty
+    Known --> Empty: Clear site data + reload
+    Empty --> Known: Connect / Import

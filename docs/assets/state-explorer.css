@@ -1,0 +1,58 @@
+#state-explorer {
+  margin: 1.5rem 0;
+}
+#state-action {
+  display: block;
+  width: 100%;
+  margin: 0.5rem 0 1rem;
+  padding: 0.7rem;
+  border: 1px solid var(--md-default-fg-color--light);
+  border-radius: 0.3rem;
+  background: var(--md-default-bg-color);
+  color: var(--md-default-fg-color);
+  font: inherit;
+}
+#state-action:focus-visible {
+  outline: 3px solid var(--md-accent-fg-color);
+  outline-offset: 2px;
+}
+.state-action-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+.state-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+.state-place {
+  padding: 0.8rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.3rem;
+  overflow-wrap: anywhere;
+}
+.state-place.changed {
+  border-inline-start: 4px solid var(--md-primary-fg-color);
+}
+.state-place p {
+  margin: 0.3rem 0;
+}
+.state-place .state-label {
+  font-weight: 700;
+}
+.state-place .state-arrow {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+.state-place .state-unchanged {
+  color: var(--md-default-fg-color--light);
+}
+.state-caveat {
+  padding: 0.8rem;
+  background: var(--md-code-bg-color);
+}
+@media (max-width: 600px) {
+  .state-grid {
+    grid-template-columns: 1fr;
+  }
+}

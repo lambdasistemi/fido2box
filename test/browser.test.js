@@ -69,7 +69,7 @@ async function main() {
   };
   const open = async (hash = '') => {   // always a real reload, including its asynchronous first render
     await send('Page.navigate', { url: 'about:blank' }); await send('Page.navigate', { url: base + hash });
-    if (!await until(`location.href === ${JSON.stringify(base + hash)} && document.readyState === 'complete' && !!document.querySelector('#app > *')`)) throw new Error('App did not render after navigation to ' + base + hash);
+    if (!await until(`location.href === ${JSON.stringify(base + hash)} && document.readyState === 'complete' && !!document.querySelector('#app > *')`)) throw new Error('App did not render after navigation to ' + base + hash + ': ' + JSON.stringify(await run("({url:location.href,state:document.readyState,app:document.querySelector('#app')?.textContent})")) + '; errors: ' + JSON.stringify(pageErrors));
   };
   const screenshot = async (name) => {
     if (!process.env.FIDO_UI_SCREENSHOTS) return;
@@ -95,7 +95,10 @@ async function main() {
     const key1 = await auth();
     // ===== empty library, make a box =====
     await open();
+    ok(await run("!!document.querySelector('#connectKey') && !!document.querySelector('#setupKey')"), 'an empty library offers key-held GitHub connection and setup before opening a box');
     await require('./storage.browser.cjs')({ run, ok });
+    await require('./key-access-choice.browser.cjs')({ run, ok });
+    await require('./key-access-readback.browser.cjs')({ run, ok });
     await require('./sessions.browser.cjs')({ run, ok });
     await require('./record-ui.browser.cjs')({ run, ok });
     ok(await has('No boxes yet'), 'a new browser has an empty library');
@@ -345,9 +348,11 @@ async function main() {
     ok(await run("lib.get('two').then(r => r.box.keys[0].name === 'Security key 1')"), 'an omitted nickname receives a readable automatic name');
     await addRecord('Site','https://example.org','s1');
     await click('#tab-sync'); await sleep(200);
-    ok(await has('Connect to GitHub') && (await run(`${q('#openGh')}.href`)) === 'https://github.com/settings/personal-access-tokens/new', 'the Sync tab walks through connecting: the token step links to GitHub');
-    await fill('#iToken', 'ghp_FAKE'); await click('#addToken'); await sleep(500);
-    ok(await has('A token is kept in this box') && !(await has('ghp_FAKE')), 'the GitHub token is kept in the box and never displayed');
+    ok(await run("!!document.querySelector('#connectKey') && !document.querySelector('#addToken')"), 'Sync offers key access and no longer writes a bootstrap token into a box');
+    // Compatibility fixture: older releases wrote encrypted service tokens.
+    await run(`(async()=>{const {lib,backups}=await import('./store.js');const {createBoxSessions}=await import('./box-session.js');const {unlockVault}=await import('./webauthn.js');const s=createBoxSessions({storage:lib,backups,newId:()=>crypto.randomUUID(),rpId:location.hostname,unlock:unlockVault});await s.unlock('two');const v=s.get('two');const result=await s.mutate('two',v.token,{kind:'set-token',id:crypto.randomUUID(),url:'https://github.com/settings/personal-access-tokens',secret:'ghp_FAKE'},null);if(!result.ok)throw Error(result.code);})()`);
+    await open('#/box/two');await click('#unlockBtn');await until(`!!${q('#lockBtn')}`);await click('#tab-sync');
+    ok(await has('legacy GitHub token') && !(await has('ghp_FAKE')), 'legacy encrypted service tokens remain usable and hidden');
     ok(!(await run(`lib.list().then((l) => JSON.stringify(l))`)).includes('ghp_FAKE'), 'the token is not readable in the library either');
     await open('#/settings'); await fill('#repoIn', 'paolino/fido-box'); await click('#saveRepo'); await sleep(200);
     await open('#/box/two'); await click('#unlockBtn'); await until(`!!${q('#lockBtn')}`);
@@ -438,6 +443,8 @@ async function main() {
     ok(await noOverflow(), 'identification guidance and controls fit a 320px phone');
     await run("document.querySelector('.key-picker').scrollIntoView({block:'center'})");
     await sleep(3600); await screenshot('identify-key-phone');
+    await send('WebAuthn.disable');await send('WebAuthn.enable',{enableUI:false});
+    await require('./key-access.browser.cjs')({run,send,ok,base,open,click,fill,btn,until,auth,addRecord,screenshot});
   } finally { try { ws.close(); } catch (e) {} proc.kill(); server.close(); try { fs.rmSync(profile, { recursive: true, force: true }); } catch (e) {} }
   ok(pageErrors.length === 0, 'no uncaught page errors' + (pageErrors.length ? ': ' + pageErrors[0] : ''));
   console.log('\n' + (n - fails) + '/' + n + ' passed'); process.exit(fails ? 1 : 0);

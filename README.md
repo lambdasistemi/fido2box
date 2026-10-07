@@ -74,10 +74,17 @@ Saving a record or changing keys/tokens raises the box's `rev` after the
 encrypted write succeeds. Unsaved record drafts remain only in memory. Nothing
 reaches GitHub until you press **Push**. Push refuses to overwrite a version
 with the same or a higher `rev`, and Pull asks first when your copy is newer. A
-GitHub token limited to the box repository (Contents: read and write) is kept as
-a separate encrypted service record, so unlocking the box lets the app talk to
-GitHub; it is never shown. Fine-grained tokens expire, so renew it when GitHub
-refuses it.
+GitHub token limited to the box repository (Contents: read and write) can be
+stored encrypted **on your security key**, independently of every box. Choose
+**Set up key** on Boxes, enter the repository and token, then follow the PIN and
+touch prompts. Setup verifies the write by reading it back. This requires PRF,
+discoverable credentials and largeBlob support in both the key and browser.
+
+On an empty browser, **Connect with security key** retrieves the repository and
+token from the key and lists your boxes. Pull a box, then unlock it with one of
+its enrolled keys. Nothing needs to be imported or unlocked to connect. If the
+token expires, connect and use **Renew access** to write a replacement. Legacy
+tokens already inside boxes remain readable; new setup never stores one there.
 
 ## What you can do with recovery records
 

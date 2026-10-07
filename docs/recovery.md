@@ -7,11 +7,51 @@ recovering it from an encrypted file and a spare enrolled key.
    security key. Keep a separate backup key and enroll it while the box is open.
 2. Add the recovery items you need. Download the encrypted JSON file and keep a
    copy outside this browser. The key alone cannot recreate the box file.
-3. Optionally connect a private GitHub repository through Settings and Sync. Use
-   a fine-grained token limited to that repository with Contents read/write.
-   Push is explicit; local changes are not automatically backed up.
-4. Test recovery in another browser: import the backup, unlock with each
-   enrolled key, and verify the required items are present.
+3. On Boxes, open **First time with this key?**, then choose **Set up GitHub
+   access on this key** to store GitHub access encrypted on your key. Enter the
+   repository and a fine-grained token limited to that repository with Contents
+   read/write. Follow each PIN/touch prompt until the app confirms it read the
+   saved access back. Push your boxes from Sync; local changes are not
+   automatically backed up.
+4. Test recovery in another browser: choose **Use security key**, select the
+   GitHub access credential, then Pull a listed box from Sync. Unlock with an
+   enrolled key and verify the required items are present. You can also import a
+   downloaded backup without GitHub access.
+
+<!-- diagram: key-access-recovery -->
+
+GitHub access is stored separately from the box, so fetching the box never
+requires opening it. The key needs discoverable credentials, PRF and largeBlob
+support, and the browser must expose all three. A failed or unsupported setup is
+reported without claiming that recovery is ready. Token expiry or revocation
+still requires a new token from GitHub: connect with the key, then choose
+**Renew access**. The app promotes renewal when it has read a profile whose
+token GitHub refuses. If no access is returned, it offers **Try key again** and
+explains the optional setup path. It never automatically creates a profile after
+a failed or cancelled read. Browser privacy rules do not reliably distinguish
+cancellation, timeout and no matching credential; an unanswered request cannot
+establish that a key is empty. See the
+[WebAuthn privacy rules](https://www.w3.org/TR/webauthn-3/#sctn-privacy-considerations-client).
+
+Setup can ask for your PIN several times: creation, encryption-key derivation
+(when it cannot be combined with creation), writing access and checking its
+readback are separate key operations. The final check reads only encrypted data
+and uses the verified encryption secret from the write to check its exact
+contents. It does not request another PIN, although the browser or key may still
+require one or ask for a touch. The encryption secret is not kept after setup or
+renewal. The app announces each stage. A normal **Use security key** connection
+uses one key operation and requires verification. The browser and key control
+the actual PIN/touch prompts; reduced physical PIN counts have not been
+verified. No PIN is stored by the app.
+
+Setup creates a dedicated GitHub access credential. Renewal updates the
+credential selected during connection. Setting up another profile uses another
+resident credential slot. Resetting the key erases its profile. Configure spare
+keys separately; enrolling a key in a box does not copy GitHub access onto it.
+
+The
+[key-held access design](https://github.com/lambdasistemi/fido2box/blob/main/specs/034-key-held-github/plan.md)
+describes the storage format, encryption domain and cancellation boundaries.
 
 Credentials belong to the original domain. A rehearsal at `http://localhost`
 creates different credentials. Renew the production domain and preserve the box
