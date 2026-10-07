@@ -65,3 +65,11 @@ save/session boundary before new fields can ship. These are planned contracts,
 not current app capabilities; task generation and verification still precede
 implementation. The stale-Pull finding in issue #16 remains a release
 dependency.
+
+Contributors can exercise the developing storage/session boundary through
+`just browser`. Its synthetic legacy fixtures retain complete notes and token
+records; the tests use real IndexedDB for migration backups, source conflicts,
+failed writes and late asynchronous completions. Authentication in those
+controller cases is injected, while the existing app scenarios use Chromium's
+virtual authenticator. The new controller is not yet connected to the app, so
+these checks alone do not establish the user-visible stale-Pull fix.

@@ -112,4 +112,6 @@ const prf = (s) => B.enc.encode(s.padEnd(32, '.')).slice(0, 32);       // a fake
   }
   console.log('\n' + n + ' checks passed');
   await require('./records.test.cjs')();
+  await require('./box-format.test.cjs')();
+  await require('./legacy-fixtures.test.cjs')();
 })().catch((e) => { console.error('FAILED:', e.message); process.exit(1); });

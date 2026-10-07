@@ -3,5 +3,5 @@
     "target": "ES2022", "module": "ES2022", "moduleResolution": "Bundler", "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "allowJs": true, "checkJs": true, "noEmit": true, "strict": true, "skipLibCheck": true
   },
-  "include": ["web/records.js", "web/record-codec.js", "web/crypto.js", "web/url.js", "web/webauthn.js", "web/github.js", "web/store.js", "web/theme.js", "web/guidance.js"]
+  "include": ["web/records.js", "web/record-codec.js", "web/box-format.js", "web/box-session.js", "web/crypto.js", "web/url.js", "web/webauthn.js", "web/github.js", "web/store.js", "web/theme.js", "web/guidance.js"]
 }

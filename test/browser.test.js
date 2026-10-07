@@ -87,6 +87,8 @@ async function main() {
     const key1 = await auth();
     // ===== empty library, make a box =====
     await open();
+    await require('./storage.browser.cjs')({ run, ok });
+    await require('./sessions.browser.cjs')({ run, ok });
     ok(await has('No boxes yet'), 'a new browser has an empty library');
     ok(await auditVisible() && await run(`(() => { const notice = document.querySelector('#audit-notice'); return !document.querySelector('#app').contains(notice) && notice.getAttribute('aria-label') === 'Security notice' && !notice.matches('[role="alert"], [aria-live]') && !notice.querySelector('button'); })()`), 'a fresh page shows a persistent, non-dismissible security notice without a live alert');
     ok(await run(`(() => { const link = document.querySelector('#audit-notice a'); return !!link && link.textContent === 'Security limitations' && link.href === location.origin + '/docs/security/' && link.target === '_blank' && link.relList.contains('noopener') && link.relList.contains('noreferrer'); })()`), 'the named security link opens same-origin limitations separately without opener access or referrer');

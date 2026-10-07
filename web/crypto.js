@@ -75,9 +75,17 @@ export async function unwrapDataKey(entry, prf) {
  * @returns {Promise<Sealed>}
  */
 export async function encryptItem(data, item) {
+  return encryptText(data, JSON.stringify({ title: item.title, url: item.url, secret: item.secret }));
+}
+/** Encrypt exact text without interpreting a record schema. @param {BufferSource} data @param {string} text @returns {Promise<Sealed>} */
+export async function encryptText(data, text) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await aesKey(data, ['encrypt']), enc.encode(JSON.stringify({ title: item.title, url: item.url, secret: item.secret })));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await aesKey(data, ['encrypt']), enc.encode(text));
   return { iv: b64(iv), ct: b64(ct) };
+}
+/** Decrypt authenticated text without interpreting its schema. @param {BufferSource} data @param {Sealed} it @returns {Promise<string>} */
+export async function decryptText(data, it) {
+  return dec.decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(it.iv) }, await aesKey(data, ['decrypt']), unb64(it.ct)));
 }
 /**
  * @param {BufferSource} data
@@ -85,7 +93,7 @@ export async function encryptItem(data, item) {
  * @returns {Promise<Item>}
  */
 export async function decryptItem(data, it) {
-  const text = dec.decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(it.iv) }, await aesKey(data, ['decrypt']), unb64(it.ct)));
+  const text = await decryptText(data, it);
   return parseItem(text);
 }
 /** An item's plaintext is JSON; older boxes held plain text (perhaps a 1Password Secret Key). @param {string} text @returns {Item} */

@@ -37,9 +37,9 @@ no URL is required and only the primary values enter the serialized record.
 Independent outcome: migration keeps a downloadable original; failed or stale
 writes cannot destroy the saved source or publish unlocked data after lock.
 
-- [ ] Freeze synthetic legacy fixtures under `test/fixtures/`; write failing
+- [x] Freeze synthetic legacy fixtures under `test/fixtures/`; write failing
       strict-envelope cases and implement `web/box-format.js`.
-- [ ] Add real IndexedDB tests for source-preserving reads, atomic comparison,
+- [x] Add real IndexedDB tests for source-preserving reads, atomic comparison,
       abort/conflict, immutable backup/read-back and backup-only discovery;
       implement `web/store.js` without changing the active database version.
 - [ ] Reproduce stale Pull, deferred unlock/enrollment, failed save, locked v1
@@ -116,3 +116,15 @@ and failed, then all 30 record/codec checks passed, including 128 generated
 codec round trips. Typecheck and the existing core/tooling suites passed too.
 Neither pure component is wired into the app writer yet; storage, migration and
 browser acceptance remain unchecked above.
+
+Storage and session evidence: frozen synthetic v1/v2 fixtures decrypt with the
+pre-change construction. Eight real IndexedDB cases cover exact-source
+comparison, concurrent writes, abort during put, quota failure, immutable backup
+read-back and discovery after deletion. The backup-add exception failed before
+the repair and then passed without an uncaught browser error. Twelve session
+scenarios executed against unimplemented controller methods and failed before
+implementation; four further checks cover successful mutation routes, competing
+saves, title provenance and lock during storage. These exercise the controller
+with real IndexedDB and synthetic authentication ports. App integration and the
+user-visible stale-Pull regression remain pending; the old app writer is still
+active.
