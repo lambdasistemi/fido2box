@@ -1,5 +1,10 @@
 # Security boundaries
 
+fido2box is experimental and has not been independently audited. Do not rely on
+it as your only recovery copy. A persistent notice on every app page links here;
+it remains visible with a box unlocked or inline help disabled. The link opens
+separately so the current app session stays available.
+
 The core uses WebCrypto: a random 256-bit data key, AES-256-GCM with fresh
 random 96-bit IVs, and HKDF-SHA-256 over a credential's WebAuthn PRF output.
 Unlocking requires user verification and checks the UV flag. User verification

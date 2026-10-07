@@ -32,6 +32,11 @@ Details and limits: [AUDIT.md](AUDIT.md).
 A single-page app for managing locked **boxes**. A box is one file holding items
 and the keys that open it.
 
+Every app page warns that fido2box is experimental and not independently
+audited: do not rely on it as your only recovery copy. The notice links to the
+[security limitations](https://fido2box.dev/docs/security/) and stays visible
+when inline help is off.
+
 - **Boxes:** the boxes in this browser (kept in IndexedDB, locked) and in a
   GitHub repository (`boxes/NAME.json`), with a status for each: in sync, ahead
   of GitHub, behind GitHub, only here, only on GitHub. New box, import a file.

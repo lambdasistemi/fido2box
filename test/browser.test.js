@@ -68,6 +68,7 @@ async function main() {
   const noOverflow = () => run('innerWidth <= 320 && document.documentElement.scrollWidth <= innerWidth');
   const labeledInputs = () => run(`[...document.querySelectorAll('input:not([type=file])')].every((input) => input.labels.length > 0)`);
   const visibleHelp = () => run(`document.querySelectorAll('button[data-help]:not([hidden])').length`);
+  const auditVisible = () => run(`(() => { const notice = document.querySelector('#audit-notice'), link = notice?.querySelector('a'); if (!notice || !link) return false; const rect = notice.getBoundingClientRect(), style = getComputedStyle(notice), linkRect = link.getBoundingClientRect(), linkStyle = getComputedStyle(link); return notice.innerText.includes('Experimental — not independently audited. Do not rely on this as your only recovery copy.') && rect.width > 0 && rect.height > 0 && rect.left >= 0 && rect.right <= innerWidth && style.visibility === 'visible' && style.display !== 'none' && style.color !== style.backgroundColor && linkRect.width > 0 && linkRect.height > 0 && linkRect.left >= 0 && linkRect.right <= innerWidth && linkStyle.visibility === 'visible' && linkStyle.display !== 'none'; })()`);
   const key = async (name, code, shift = false) => {
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key: name, code: name, windowsVirtualKeyCode: code, modifiers: shift ? 8 : 0, ...(name === 'Enter' ? { text: '\r', unmodifiedText: '\r' } : {}) });
     await send('Input.dispatchKeyEvent', { type: 'keyUp', key: name, code: name, windowsVirtualKeyCode: code, modifiers: shift ? 8 : 0 });
@@ -81,6 +82,10 @@ async function main() {
     // ===== empty library, make a box =====
     await open();
     ok(await has('No boxes yet'), 'a new browser has an empty library');
+    ok(await auditVisible() && await run(`(() => { const notice = document.querySelector('#audit-notice'); return !document.querySelector('#app').contains(notice) && notice.getAttribute('aria-label') === 'Security notice' && !notice.matches('[role="alert"], [aria-live]') && !notice.querySelector('button'); })()`), 'a fresh page shows a persistent, non-dismissible security notice without a live alert');
+    ok(await run(`(() => { const link = document.querySelector('#audit-notice a'); return !!link && link.textContent === 'Security limitations' && link.href === location.origin + '/docs/security/' && link.target === '_blank' && link.relList.contains('noopener') && link.relList.contains('noreferrer'); })()`), 'the named security link opens same-origin limitations separately without opener access or referrer');
+    await run(`document.querySelector('[data-theme-choice="system"]').focus()`); await key('Tab', 9);
+    ok(await run(`document.activeElement === document.querySelector('#audit-notice a') && getComputedStyle(document.activeElement).outlineStyle !== 'none'`), 'Tab reaches the security limitations link with visible keyboard focus');
     ok(await run(`!!document.querySelector('#n-docs') && !!document.querySelector('[data-help="boxes"]')`), 'Documentation and contextual help are available without a box');
     ok(await run(`document.querySelectorAll('[data-theme-choice]').length === 3`), 'Light, Dark, and System controls are available on every page');
     await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
@@ -88,11 +93,13 @@ async function main() {
     ok(await run(`document.documentElement.dataset.theme === 'light' && document.querySelector('[data-theme-choice="system"]').getAttribute('aria-pressed') === 'true'`), 'first visit follows the system and announces the selected appearance');
     await theme('dark');
     const darkBackground = await run('getComputedStyle(document.body).backgroundColor');
+    const darkNoticeColor = await run(`document.querySelector('#audit-notice') ? getComputedStyle(document.querySelector('#audit-notice')).color : ''`);
     ok(await run(`getComputedStyle(document.documentElement).colorScheme === 'dark'`), 'Dark uses the dark palette and dark native controls');
     await screenshot('desktop-dark');
     await systemTheme('dark'); await theme('light');
     const lightBackground = await run('getComputedStyle(document.body).backgroundColor');
     ok(lightBackground !== darkBackground && await run(`getComputedStyle(document.documentElement).colorScheme === 'light'`), 'Light overrides a dark system preference and changes the rendered palette');
+    ok(await auditVisible() && darkNoticeColor !== await run(`getComputedStyle(document.querySelector('#audit-notice')).color`), 'the security notice follows the Light and Dark palettes');
     await screenshot('desktop-light');
     await open('#/settings');
     ok(await run(`document.documentElement.dataset.theme === 'light' && document.querySelector('[data-theme-choice="light"]').getAttribute('aria-pressed') === 'true'`), 'the appearance choice survives reloads and navigation');
@@ -122,8 +129,10 @@ async function main() {
     await open(); await theme('light');
     await send('Emulation.setDeviceMetricsOverride', { width: 320, height: 800, deviceScaleFactor: 1, mobile: true });
     ok(await noOverflow(), 'the header and empty library fit a 320px phone');
+    ok(await auditVisible() && await noOverflow(), 'the security notice and link fit a 320px phone in Light');
     await screenshot('phone-light');
     await theme('dark'); await screenshot('phone-dark');
+    ok(await auditVisible() && await noOverflow(), 'the security notice and link fit a 320px phone in Dark');
     await open('#/settings');
     ok(await noOverflow(), 'Settings fits a 320px phone without horizontal page scrolling');
     await screenshot('phone-settings-dark');
@@ -132,7 +141,9 @@ async function main() {
     await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
     await open(); await theme('system');
     // ===== documentation, help popups, and persistent settings =====
+    await run(`window.__auditNotice = document.querySelector('#audit-notice')`);
     await click('#n-docs'); await until(`document.querySelector('h1')?.textContent === 'Documentation'`);
+    ok(await auditVisible() && await run(`window.__auditNotice === document.querySelector('#audit-notice')`), 'changing routes preserves the same static security notice');
     ok(await run(`${q('#n-docs')}.getAttribute('aria-current') === 'page' && document.querySelectorAll('.docs-section').length === 8`), 'Documentation is a full guide available without unlocking or connecting');
     ok(await has('security key alone cannot recreate a lost box') && await has('Removing a key does not revoke'), 'the guide explains recovery requirements and key-removal limits');
     await click('.docs-contents a[href="#/docs/recovery"]');
@@ -171,6 +182,7 @@ async function main() {
     ok(await visibleHelp() === 0 && await run(`${q('#repoIn')}.value === 'draft/repository' && ${q('#tokIn')}.value === 'draft-token' && document.activeElement.id !== 'app'`), 'disabling help hides its buttons without replacing settings fields');
     await open('#/settings');
     ok(await run(`!${q('#inlineHelp')}.checked`) && await visibleHelp() === 0, 'disabled help is remembered after reloading Settings');
+    ok(await auditVisible(), 'the security notice remains visible when inline help is disabled');
     await open('#/keys');
     ok(await visibleHelp() === 0, 'the saved disabled preference applies on other pages');
     await open('#/docs');
@@ -199,6 +211,7 @@ async function main() {
     ok(await has('letters, digits'), 'a bad box name is refused');
     await fill('#newName', 'paolo'); await click('#createBox');
     ok(await until(`location.hash === '#/box/paolo' && !!${q('#lockBtn')}`), 'creating a box with a key (real WebAuthn + PRF) opens it, unlocked');
+    ok(await auditVisible(), 'an unlocked box still shows the security notice');
     const rec = JSON.parse(await run(`lib.get('paolo').then((r) => JSON.stringify(r.box))`));
     ok(rec.v === 2 && rec.rev === 1 && rec.keys.length === 1 && rec.keys[0].name === 'hk-home' && rec.rpId === 'localhost', 'library record: v2, rev 1, key hk-home, rpId localhost');
     // ===== items =====
@@ -242,6 +255,7 @@ async function main() {
     await click('#kNameManual'); await fill('#kName', 'hk-home'); await click('#addKey'); await until(`document.body.innerText.includes('hk-home')`);
     // ===== lock, reload, unlock again =====
     await click('#lockBtn'); await sleep(200); await click('#tab-items'); await sleep(200);
+    ok(await auditVisible(), 'locking the box preserves the security notice');
     ok(await has('This box is locked') && !(await has('Google')), 'locked: nothing readable');
     await open('#/box/paolo');
     ok(await has('This box is locked'), 'the library survives a reload; the box is locked again');
