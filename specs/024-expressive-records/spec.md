@@ -4,6 +4,9 @@
 
 **Feature ID**: `024-expressive-records`
 
+**Implementation tracking**:
+[issue #26](https://github.com/lambdasistemi/fido2box/issues/26)
+
 **Created**: 2026-10-07
 
 **Status**: Specified; implementation not started
@@ -139,11 +142,13 @@ unlock again.
 
 1. **Given** a legacy title/address/secret record, **When** I open and save it,
    **Then** the title and both values remain exact, the address becomes a URL
-   field, and the secret is hidden. Missing legacy fields remain absent or
-   empty, without fabricated credentials or forced new values. An existing blank
-   title may remain unchanged through edits and migration; an Untitled display
-   label is not persisted as a replacement. Explicitly renaming it requires a
-   nonblank title, as does creating a new record.
+   field, and the secret is hidden. For documented v2 triples, secret is
+   required; a missing title or URL remains absent or empty, without fabricated
+   credentials or forced new values. A purported v2 triple without a string
+   secret is unsupported and follows scenario 3.4. An existing blank title may
+   remain unchanged through edits and migration; an Untitled display label is
+   not persisted as a replacement. Explicitly renaming it requires a nonblank
+   title, as does creating a new record.
 2. **Given** a legacy plaintext note, **When** I recover it, **Then** the whole
    original note remains available in a hidden multiline field. Any extracted
    recovery key is additional information, never a replacement for that note.
@@ -283,3 +288,7 @@ hardware-only enforcement are not solved or newly claimed by this feature.
 - Schema, module interfaces, migration mechanics, and tests are planning work,
   not specified implementations. The next phase produces the modules model
   before data and function models, following constitution 1.1.0.
+- Untouched imported values retain their original line endings even after reveal
+  or unrelated edits. Deliberately editing a value replaces it with the browser
+  control's input; editing CR/CRLF content shows a warning about LF
+  normalization. No other implicit value normalization is authorized.

@@ -56,3 +56,12 @@ changes require safe-link, copy/reveal, lock/reset, and accessibility coverage.
 The templates contain explicit constitution checks rather than optional test
 placeholders. This amendment does not implement expressive records or change the
 current three-field app behavior.
+
+The expressive-record specification and technical plan live in
+[`specs/024-expressive-records/`](https://github.com/lambdasistemi/fido2box/tree/main/specs/024-expressive-records).
+The design keeps record/domain logic, encrypted formats, persistence, UI, and
+browser effects in separate owners. It requires migration backups and a shared
+save/session boundary before new fields can ship. These are planned contracts,
+not current app capabilities; task generation and verification still precede
+implementation. The stale-Pull finding in issue #16 remains a release
+dependency.
