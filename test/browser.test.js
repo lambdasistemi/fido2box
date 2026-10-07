@@ -1,9 +1,9 @@
 // Real Chrome, real WebAuthn (Chrome's virtual security key with PRF), real IndexedDB, the real app served over http://localhost.
 // GitHub is faked inside the page (its CORS rules were checked against the real API by hand).
-// Run: node test/browser.test.js   (needs google-chrome / chromium on PATH; skipped when missing)
+// Run: node test/browser.test.js (requires google-chrome / chromium on PATH).
 const { spawn, spawnSync } = require('child_process'); const http = require('http'); const fs = require('fs'); const os = require('os'); const path = require('path');
-const chrome = ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser'].find((c) => spawnSync('sh', ['-c', 'command -v ' + c]).status === 0);
-if (!chrome) { console.log('skipped: no chrome on PATH'); process.exit(0); }
+const chrome = ['chromium', 'chromium-browser', 'google-chrome', 'google-chrome-stable'].find((c) => spawnSync('sh', ['-c', 'command -v ' + c]).status === 0);
+if (!chrome) { console.error('FAILED: Chrome/Chromium is required; run nix develop -c just browser'); process.exit(1); }
 const WEB = path.join(__dirname, '..', 'web'); let n = 0, fails = 0;
 const ok = (c, m) => { n++; if (c) console.log('ok  ' + m); else { fails++; console.log('FAIL ' + m); } };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -41,7 +41,9 @@ const FAKE_GH = `(() => {
 async function main() {
   await new Promise((r) => server.listen(0, '127.0.0.1', r)); const base = 'http://localhost:' + server.address().port + '/';
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'box-chrome-'));
-  const proc = spawn(chrome, ['--headless=new', '--remote-debugging-port=0', '--user-data-dir=' + profile, '--no-first-run', '--no-sandbox', '--disable-gpu', 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
+  // Crashpad needs a writable config directory even with an isolated user-data-dir.
+  const config = path.join(profile, 'config'); fs.mkdirSync(config);
+  const proc = spawn(chrome, ['--headless=new', '--remote-debugging-port=0', '--user-data-dir=' + profile, '--no-first-run', '--no-sandbox', '--disable-gpu', 'about:blank'], { env: { ...process.env, XDG_CONFIG_HOME: config }, stdio: ['ignore', 'ignore', 'pipe'] });
   const wsUrl = await new Promise((res, rej) => { let b = ''; proc.stderr.on('data', (d) => { b += d; const m = b.match(/DevTools listening on (ws:\/\/\S+)/); if (m) res(m[1]); }); setTimeout(() => rej(new Error('chrome did not start')), 20000); });
   const target = await (await fetch('http://127.0.0.1:' + new URL(wsUrl).port + '/json/new?about:blank', { method: 'PUT' })).json();
   const ws = new WebSocket(target.webSocketDebuggerUrl); await new Promise((r) => (ws.onopen = r));

@@ -1,24 +1,81 @@
-name: ci
+name: CI
 on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
+  workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
-  test:
-    # GitHub-hosted on purpose: this repository is public and security-sensitive.
-    runs-on: ubuntu-latest
+  build-gate:
+    name: Build Gate
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
         with:
-          node-version: 22
-      - run: npm ci
-      - name: Types (JSDoc checked by tsc, no build)
-        run: npx tsc -p tsconfig.json
-      - run: npm test
-      - name: No external imports in the run-time code
-        run: |
-          if grep -nE 'src="https?:|from .https?:|import\(.https?:|<link[^>]*href="https?:' web/*; then
-            echo "external import found"; exit 1; fi
+          persist-credentials: false
+      - uses: paolino/dev-assets/setup-nix@v0.0.1
+        with:
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - run:
+          nix build --quiet .#site
+          .#devShells.x86_64-linux.default.inputDerivation
+      - run: nix flake check --no-eval-cache --print-build-logs
+  build:
+    name: CI build
+    needs: build-gate
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: paolino/dev-assets/setup-nix@v0.0.1
+        with:
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - run: nix run --quiet .#typecheck
+      - run: nix run --quiet .#unit
+      - run: nix run --quiet .#browser
+      - run: nix run --quiet .#lint
+  format:
+    name: CI format
+    needs: build-gate
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: paolino/dev-assets/setup-nix@v0.0.1
+        with:
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - run: nix run --quiet .#format-check
+  docs:
+    name: Docs build
+    needs: build-gate
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: paolino/dev-assets/setup-nix@v0.0.1
+        with:
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - run: nix run --quiet .#docs-check
+      - run: nix build --quiet .#site
+      - name: Smoke the app and documentation
+        run: nix develop --quiet -c bash scripts/smoke-site.sh result
+  dev-shell:
+    name: Dev shell
+    needs: build-gate
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: paolino/dev-assets/setup-nix@v0.0.1
+        with:
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - run: nix develop --quiet -c just ci

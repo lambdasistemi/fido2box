@@ -17,10 +17,12 @@ scoped GitHub App token from the existing organization credentials so release
 PRs trigger checks. Attach the source-equivalent static app archive to releases;
 do not publish to npm.
 
-Use self-hosted `nixos` runners and least-privilege workflow permissions.
-Contributions from forks require maintainer inspection and a trusted branch
-before executing on persistent runners. Require CI build, CI format, Docs build,
-and Dev shell checks through a main ruleset, with the standard admin bypass.
+Use GitHub-hosted `ubuntu-24.04` runners and least-privilege workflow
+permissions, per the maintainer's explicit override of the initial self-hosted
+plan. Install Nix and configure Cachix in every Nix job; stores are not shared
+between jobs. Fork PRs run after workflow approval without repository secrets.
+Require Build Gate, CI build, CI format, Docs build, and Dev shell checks
+through a main ruleset, with the standard admin bypass.
 
 ## Validation
 
