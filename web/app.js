@@ -124,7 +124,7 @@ function boxesView() {
     await lib.put(name, box); await reload(); say('Imported "' + name + '".'); ev.target.value = ''; }) } });
   const nameIn = h('input', { id: 'newName', placeholder: 'box name, e.g. paolo', maxlength: 40 }), kp = keyPicker('newKey', []);
   const form = S.newOpen ? h('div', { class: 'card' }, h('h2', null, 'New box'),
-    h('label', null, 'Name (letters, digits, - and _)'), nameIn, h('label', null, 'Security key'), kp.node,
+    h('label', { for: 'newName' }, 'Name (letters, digits, - and _)'), nameIn, h('label', { for: 'newKey' }, 'Security key name'), kp.node,
     h('p', { class: 'muted small' }, 'Plug in the hardware security key you will open this box with, and only that one. It asks for its PIN and a touch, twice.'),
     h('div', { class: 'row' }, h('button', { class: 'primary', id: 'createBox', on: { click: act(async () => {
       const name = nameIn.value.trim(), kn = kp.name();
@@ -134,17 +134,17 @@ function boxesView() {
       h('button', { on: { click: () => { S.newOpen = false; render(); } } }, 'Cancel'))) : null;
   const rows = names.map((n) => { const l = local(n), r = S.remote && S.remote[n], st = sync(l && l.box, r), b = (l && l.box) || r;
     return h('tr', { class: 'click', on: { click: () => { location.hash = '#/box/' + encodeURIComponent(n); } } },
-      h('td', null, h('strong', null, n), ' ', S.unlocked[n] ? chip('unlocked', 'live') : null),
+      h('td', null, h('a', { class: 'box-link', href: '#/box/' + encodeURIComponent(n) }, n), ' ', S.unlocked[n] ? chip('unlocked', 'live') : null),
       h('td', null, l ? chip('this browser') : null, r ? ghLink('GitHub ↗', 'blob/main/boxes/' + n + '.json', 'chip') : null),
-      h('td', null, String(keysOf(b).length)), h('td', null, 'rev ' + (b.rev || 0)), h('td', null, chip(st.t, st.c))); });
+      h('td', null, h('span', { class: 'mobile-label' }, 'Keys: '), String(keysOf(b).length)), h('td', null, 'rev ' + (b.rev || 0)), h('td', null, chip(st.t, st.c))); });
   return h('div', null,
     h('div', { class: 'row sp' }, h('h1', null, 'Boxes'), h('div', { class: 'row' },
       h('button', { class: 'primary', id: 'newBtn', on: { click: () => { S.newOpen = true; render(); } } }, 'New box'),
       h('button', { id: 'importBtn', on: { click: () => document.getElementById('importFile').click() } }, 'Import file'),
       h('button', { id: 'refreshBtn', on: { click: act(async () => { await refreshRemote(); if (S.remote) say('GitHub: ' + Object.keys(S.remote).length + ' box(es).'); else say(S.remoteErr, true); }) } }, 'Refresh GitHub'))),
-    h('p', { class: 'muted small', id: 'intro' }, 'A box is one locked file that holds your items. Your security keys, the hardware keys you plug in, open it: any one of them is enough.'),
+    h('p', { class: 'muted', id: 'intro' }, 'Your secrets, locked with your hardware keys. Each box holds your items; any of its enrolled keys can unlock it.'),
     file, form,
-    h('p', { class: 'muted small', id: 'ghLine' }, S.remote ? ['GitHub: ', ghLink(S.repo, 'tree/main/boxes'), ', ' + Object.keys(S.remote).length + ' box(es).'] : [S.remoteErr || 'GitHub: not checked.', ghUrl('tree/main/boxes') ? [' ', ghLink('Open the repository ↗', 'tree/main/boxes')] : null]),
+    h('p', { class: 'muted small', id: 'ghLine' }, S.remote ? ['GitHub: ', ghLink(S.repo, 'tree/main/boxes'), ', ' + Object.keys(S.remote).length + ' box(es).'] : [S.remoteErr || 'GitHub: not checked.', ...(ghUrl('tree/main/boxes') ? [' ', ghLink('Open the repository ↗', 'tree/main/boxes')] : [])]),
     names.length ? h('div', { class: 'card' }, h('table', null, h('tr', null, h('th', null, 'Name'), h('th', null, 'Where'), h('th', null, 'Security keys'), h('th', null, 'Version'), h('th', null, 'Status')), rows))
       : h('div', { class: 'card empty', id: 'emptyBoxes' }, h('p', null, 'No boxes yet.'), h('p', { class: 'small' }, 'Make a new one, or import a box file. If you are recovering, download your box file from ', REPO_RE.test(S.repo) ? h('a', { href: 'https://github.com/' + S.repo + '/tree/main/boxes', target: '_blank', rel: 'noopener noreferrer' }, S.repo) : 'your repository on GitHub', ' (log in with your key) and import it here.')));
 }
@@ -171,7 +171,7 @@ function itemsTab(name, rec, rem, U) {
         safeUrl(it.url) ? h('a', { class: 'btn', href: safeUrl(it.url), target: '_blank', rel: 'noopener noreferrer' }, 'Open') : null, ' ',
         h('button', { class: 'copy', on: { click: act(async (ev) => { await navigator.clipboard.writeText(it.secret); say('Copied. It is cleared after a minute.'); clearTimeout(S.clip); S.clip = setTimeout(async () => { try { if ((await navigator.clipboard.readText()) === it.secret) await navigator.clipboard.writeText(' '); } catch (e) { say('Could not clear the clipboard: clear it yourself.', true); } }, 60000); }) } }, 'Copy'), ' ',
         confirmBtn('i' + i, 'Delete', async () => { U.plain.splice(i, 1); await commit(name); }))))) : h('p', { class: 'muted' }, 'No items yet.')),
-    h('div', { class: 'card' }, h('h2', null, 'Add an item'), h('label', null, 'Name'), t.name, h('label', null, 'Web address (where Open goes)'), t.url, h('label', null, 'Secret (what Copy copies)'), t.secret,
+    h('div', { class: 'card' }, h('h2', null, 'Add an item'), h('label', { for: 'iName' }, 'Name'), t.name, h('label', { for: 'iUrl' }, 'Web address (where Open goes)'), t.url, h('label', { for: 'iSecret' }, 'Secret (what Copy copies)'), t.secret,
       h('p', null, h('button', { class: 'primary', id: 'addItem', on: { click: act(async () => {
         const title = t.name.value.trim(), url = t.url.value.trim(), secret = t.secret.value;
         if (!title) throw new Error('Give it a name.'); if (!safeUrl(url)) throw new Error('The web address must start with https://'); if (!secret) throw new Error('The secret is empty.');
@@ -186,7 +186,7 @@ function keysTab(name, rec, U) {
       h('td', { class: 'r' }, ks.length > 1 ? confirmBtn('k' + i, 'Remove', async () => { await commit(name, ks.filter((_, j) => j !== i)); }) : h('span', { class: 'muted small' }, 'the only security key'))))),
       h('p', { class: 'muted small' }, 'Removing a key does not revoke it: anyone who ever had it can still open older copies of this box. To revoke, make a new box.'),
       h('button', { id: 'detectBtn', on: { click: act(async () => { const id = await detect(ks.map((k) => k.id)); S.detected = id; const k = ks.find((x) => x.id === id); say(k ? '"' + k.name + '" is inserted.' : 'A key answered that is not in this box.'); }) } }, 'Detect the inserted key (PIN, touch)')),
-    h('div', { class: 'card' }, h('h2', null, 'Add a security key'), U ? [h('label', null, 'Security key'), kp.node, h('p', { class: 'muted small' }, 'Plug in the hardware key you want to add, and only that one. It asks for its PIN and a touch, twice. Enter the PIN carefully: wrong PINs use up the number of tries the key allows.'),
+    h('div', { class: 'card' }, h('h2', null, 'Add a security key'), U ? [h('label', { for: 'kName' }, 'Security key name'), kp.node, h('p', { class: 'muted small' }, 'Plug in the hardware key you want to add, and only that one. It asks for its PIN and a touch, twice. Enter the PIN carefully: wrong PINs use up the number of tries the key allows.'),
       h('button', { class: 'primary', id: 'addKey', on: { click: act(async () => { const v = kp.name(); if (kp.alreadyIn()) throw new Error('That key is already in this box.'); if (!v) throw new Error('Give the security key a name, for example hk-home.'); if (ks.some((k) => k.name === v)) throw new Error('A key with that name is already in this box.');
         const added = await withKey(() => enrolKey({ ...rec.box, keys: keysOf(rec.box) }, v, U.data)); await commit(name, added.keys); say('Added "' + v + '".'); }) } }, 'Add this security key')]
       : h('p', { class: 'muted' }, 'Unlock the box first (Items tab): adding a security key needs the box open.')));
@@ -200,13 +200,13 @@ function connectCard(name) {
       h('li', null, 'Open GitHub\'s token page (the button below) and sign in. A token is a password for this app to write to GitHub; it is not a security key.'), h('li', null, 'Name it, for example fido-box, and pick the longest expiry.'),
       h('li', null, 'Repository access: "Only select repositories", then ', h('code', null, repoOk ? S.repo : 'your box repository'), '.'),
       h('li', null, 'Permissions → Repository permissions → Contents → Read and write. Nothing else.'), h('li', null, 'Generate the token, copy it, and paste it here.')),
-    h('p', { class: 'row' }, h('a', { class: 'btn', id: 'openGh', href: 'https://github.com/settings/personal-access-tokens/new', target: '_blank', rel: 'noopener noreferrer' }, 'Open GitHub to create the token')), tokIn,
+    h('p', { class: 'row' }, h('a', { class: 'btn', id: 'openGh', href: 'https://github.com/settings/personal-access-tokens/new', target: '_blank', rel: 'noopener noreferrer' }, 'Open GitHub to create the token')), h('label', { for: 'iToken' }, 'GitHub token'), tokIn,
     h('p', null, h('button', { class: 'primary', id: 'addToken', on: { click: act(async () => { const v = tokIn.value.trim(); if (!v) throw new Error('Paste the token first.');
       U.plain = U.plain.filter((i) => i.title !== TOKEN_TITLE); U.plain.push({ title: TOKEN_TITLE, url: 'https://github.com/settings/personal-access-tokens', secret: v }); await commit(name); say('The token is kept in the box.'); }) } }, 'Keep it in this box'))];
   return h('div', { class: 'card', id: 'connect' }, h('h2', null, 'Connect to GitHub'),
     step(1, repoOk, 'The repository that holds your boxes',
       repoOk ? h('p', { class: 'muted small' }, S.repo, ' · ', h('a', { href: '#/settings' }, 'change'))
-        : [h('p', { class: 'muted small' }, 'The GitHub repository, as owner/name.'), repoIn, h('p', null, h('button', { id: 'saveRepo2', on: { click: act(async () => { const v = repoIn.value.trim(); if (!REPO_RE.test(v)) throw new Error('Use owner/name.'); S.repo = v; try { localStorage.setItem('box-repo', v); } catch (e) {} S.remote = null; say('Repository set.'); }) } }, 'Save'))]),
+        : [h('label', { for: 'repoIn2' }, 'GitHub repository (owner/name)'), repoIn, h('p', null, h('button', { id: 'saveRepo2', on: { click: act(async () => { const v = repoIn.value.trim(); if (!REPO_RE.test(v)) throw new Error('Use owner/name.'); S.repo = v; try { localStorage.setItem('box-repo', v); } catch (e) {} S.remote = null; say('Repository set.'); }) } }, 'Save'))]),
     step(2, hasTok, 'A GitHub token, kept inside this box',
       hasTok ? [h('p', { class: 'muted small' }, 'A token is kept in this box. It is used only to talk to GitHub, and it is never shown.'), confirmBtn('tok', 'Remove the token', async () => { U.plain = U.plain.filter((i) => i.title !== TOKEN_TITLE); await commit(name); })]
         : U ? tokenHelp : [h('p', { class: 'muted small' }, 'The token is stored inside the box, so unlock the box first.'), h('button', { id: 'goItems', on: { click: () => { S.tab = 'items'; render(); } } }, 'Go to Items to unlock')]),
@@ -239,7 +239,7 @@ function keysView() {
     h('p', { class: 'muted small' }, 'A web page cannot see which key is plugged in until you use it. Detection asks the key to sign (most keys, like yours, ask for the PIN and a touch) and matches its answer to the keys listed in your boxes. A wrong PIN uses up one of the tries the key allows.'),
     h('div', { class: 'card', id: 'labelCard' }, h('h2', null, 'Name a key'),
       h('p', { class: 'muted small' }, 'Write a name on the plugged-in key itself, so you can tell your identical keys apart later. It is stored on the key (one of its free slots), readable only by this site, and wiped if the key is reset. Needs the PIN and a touch.'),
-      h('div', { class: 'row' }, labelIn, h('button', { id: 'labelBtn', on: { click: act(async () => { const v = labelIn.value.trim(); await withKey(() => writeLabel(v)); say('The label "' + v + '" is written on the key.'); }) } }, 'Write it on the key'),
+      h('label', { for: 'labelName' }, 'Key label'), h('div', { class: 'row' }, labelIn, h('button', { id: 'labelBtn', on: { click: act(async () => { const v = labelIn.value.trim(); await withKey(() => writeLabel(v)); say('The label "' + v + '" is written on the key.'); }) } }, 'Write it on the key'),
         h('button', { id: 'whoBtn', on: { click: act(async () => { const v = await withKey(readLabelOrNone); S.who = v ? 'This key says: "' + v + '".' : 'No label found on this key (or the request was cancelled).'; say(S.who); }) } }, 'Who is this? (PIN, touch)')),
       S.who ? h('p', { id: 'whoResult' }, S.who) : null),
     S.probe ? h('div', { class: 'card', id: 'probeResult' }, h('h2', null, 'The key answered'),
@@ -256,22 +256,28 @@ function keysView() {
 function settingsView() {
   const repo = h('input', { id: 'repoIn', class: 'wide', value: S.repo, placeholder: 'owner/name, e.g. paolino/fido-box' }), tok = h('input', { id: 'tokIn', class: 'wide', type: 'password', autocomplete: 'off', placeholder: 'github_pat_…' });
   return h('div', null, h('h1', null, 'Settings'),
-    h('div', { class: 'card' }, h('h2', null, 'Box repository'), h('p', { class: 'muted small' }, 'One GitHub repository holds the boxes as boxes/NAME.json. The name is not secret; it is remembered in this browser.'), repo,
+    h('p', { class: 'muted' }, 'Choose where your encrypted boxes are backed up. Appearance is always available in the header.'),
+    h('div', { class: 'card' }, h('h2', null, 'Box repository'), h('p', { class: 'muted small' }, 'One GitHub repository holds the boxes as boxes/NAME.json. The name is not secret; it is remembered in this browser.'), h('label', { for: 'repoIn' }, 'GitHub repository (owner/name)'), repo,
       h('p', null, h('button', { class: 'primary', id: 'saveRepo', on: { click: act(async () => { const v = repo.value.trim(); if (!REPO_RE.test(v)) throw new Error('Use owner/name.'); S.repo = v; try { localStorage.setItem('box-repo', v); } catch (e) {} S.remote = null; say('Repository set.'); }) } }, 'Save'))),
     h('div', { class: 'card' }, h('h2', null, 'GitHub access'), h('p', { class: 'muted small' }, 'Normally the token is kept inside a box and used once you unlock it. To look at GitHub before unlocking anything, paste a token for this session only; it is not stored. Create one at ',
       h('a', { href: 'https://github.com/settings/personal-access-tokens/new', target: '_blank', rel: 'noopener noreferrer' }, 'github.com/settings/personal-access-tokens/new'), ': only the box repository, Contents read and write.'),
-      tok, h('p', { class: 'row' }, h('button', { id: 'useTok', on: { click: act(async () => { S.token = tok.value.trim(); tok.value = ''; await refreshRemote(); say(S.remote ? 'Connected: ' + Object.keys(S.remote).length + ' box(es) on GitHub.' : S.remoteErr, !S.remote); }) } }, 'Use for this session'),
+      h('label', { for: 'tokIn' }, 'GitHub token'), tok, h('p', { class: 'row' }, h('button', { id: 'useTok', on: { click: act(async () => { S.token = tok.value.trim(); tok.value = ''; await refreshRemote(); say(S.remote ? 'Connected: ' + Object.keys(S.remote).length + ' box(es) on GitHub.' : S.remoteErr, !S.remote); }) } }, 'Use for this session'),
         S.token ? h('button', { on: { click: () => { S.token = ''; S.remote = null; render(); } } }, 'Forget it') : null)));
 }
 
 // ---------- routing ----------
 function render() {
   const parts = location.hash.replace(/^#\/?/, '').split('/'), view = parts[0];
-  for (const id of ['boxes', 'keys', 'settings']) document.getElementById('n-' + id).className = ((view || 'boxes') === id || (id === 'boxes' && view === 'box')) ? 'on' : '';
+  for (const id of ['boxes', 'keys', 'settings']) {
+    const link = document.getElementById('n-' + id), active = (view || 'boxes') === id || (id === 'boxes' && view === 'box');
+    link.className = active ? 'on' : '';
+    if (active) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
+  }
   const node = view === 'box' ? boxView(decodeURIComponent(parts[1] || '')) : view === 'keys' ? keysView() : view === 'settings' ? settingsView() : boxesView();
   $app.replaceChildren(node);
 }
 document.getElementById('where').textContent = RP === 'localhost' ? 'rehearsal on localhost' : RP;
+document.querySelector('.skip-link').addEventListener('click', (event) => { event.preventDefault(); $app.focus(); });
 window.addEventListener('hashchange', () => { S.confirm = ''; render(); });
 reload().then(render).catch((e) => { $app.textContent = 'This browser cannot keep a library of boxes: ' + e.message; });
 // which commit of the code is being served (the deployment writes COMMIT next to the app)

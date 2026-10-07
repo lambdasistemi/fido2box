@@ -24,6 +24,8 @@ A single-page app for managing locked **boxes**. A box is one file holding items
 - **Keys:** every key across your boxes, and which boxes it opens. A web page cannot see which key is plugged in until you touch it, so *Detect* asks the key to sign and matches the answer.
 - **Settings:** the box repository (`owner/name`, remembered in this browser; `?repo=` also works) and an optional GitHub token for this session.
 
+Choose **Light**, **Dark**, or **System** in the header on any page. Your choice is remembered in this browser. System follows your device's appearance, including changes while the page is open. If browser storage is blocked, the controls still work for the current page. On phones, box and item lists stack so the actions remain visible. Form labels, visible keyboard focus, box links, and a Skip to content link support keyboard navigation.
+
 Every change to a box raises its `rev` and is saved in the browser at once. Nothing reaches GitHub until you press **Push**. Push refuses to overwrite a version with the same or a higher `rev`, and Pull asks first when your copy is newer. A GitHub token limited to the box repository (Contents: read and write) is kept as an item inside the box, so unlocking the box is what lets the app talk to GitHub; it is never shown. Fine-grained tokens expire, so renew it when GitHub refuses it.
 
 Removing a key does not revoke it: anyone who ever had it can still open older copies of the box. To revoke, make a new box.
