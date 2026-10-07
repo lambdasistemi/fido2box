@@ -16,6 +16,14 @@ The rebased browser suite includes the merged theme/UI coverage (85 checks). The
 test harness isolates Chromium configuration and the Nix toolchain supplies
 fonts, so sandboxed checks do not depend on the host desktop environment.
 
+Validation passed locally and in the
+[hosted CI run](https://github.com/lambdasistemi/fido2box/actions/runs/37582470158):
+all six Nix checks, 23 unit checks, missing-browser rejection, 85 browser
+checks, formatting, workflow lint, strict docs, and the developer-shell gate.
+Independent review reproduced the checks. The assembled app and docs passed a
+localhost smoke test and both generated checksum manifests validated. App source
+remains unchanged from the merged UI baseline.
+
 The separate
 [cryptographic audit](https://github.com/lambdasistemi/fido2box/issues/16)
 remains open. Repository setup does not change the app's cryptography.
