@@ -34,10 +34,11 @@ export async function prfFor(credId) {
   if (!r || !r.results || !r.results.first) throw failure('NoPrf', 'the key has no PRF');
   return r.results.first;
 }
-/** Make a credential on the plugged-in key that it does not keep (non-discoverable). @param {string} name @returns {Promise<ArrayBuffer>} its id */
-async function createCredential(name) {
+/** Make a credential on a key not already known here. @param {string} name @param {string[]} excluded @returns {Promise<ArrayBuffer>} its id */
+async function createCredential(name, excluded) {
   const cred = /** @type {PublicKeyCredential | null} */ (await navigator.credentials.create({ publicKey: {
     rp: { name: 'Recover box', id: RP }, timeout: 60000, user: { id: rand(16), name, displayName: name }, challenge: rand(32), pubKeyCredParams: ALGS,
+    excludeCredentials: excluded.map((id) => ({ type: /** @type {'public-key'} */ ('public-key'), id: unb64(id) })),
     authenticatorSelection: { residentKey: 'discouraged', userVerification: 'required' }, extensions: /** @type {any} */ ({ prf: {} }) } }));
   if (!cred) throw failure('NoPrf', 'no answer');
   const ext = /** @type {any} */ (cred.getClientExtensionResults());
@@ -57,11 +58,20 @@ export async function unlockVault(box) {
 }
 /**
  * Enrol the key that is plugged in: make its credential (PIN, touch), read its secret number (PIN, touch), lock the data key with it.
- * @param {Box} box @param {string} name @param {BufferSource} data @returns {Promise<Box>}
+ * @param {Box} box @param {string} name @param {BufferSource} data @param {string[]} [excluded] @returns {Promise<Box>}
  */
-export async function enrolKey(box, name, data) {
-  const id = await createCredential(name);
+export async function enrolKey(box, name, data, excluded = []) {
+  const id = await createCredential(name, [...new Set([...excluded, ...keysOf(box).map((k) => k.id)])]);
   return addKeyEntry(box, name, id, await prfFor(id), data);
+}
+
+/** Reuse a recognized credential, requiring its key again before wrapping this box's data key.
+ * @param {Box} box @param {{id: string, name: string}} key @param {BufferSource} data @returns {Promise<Box>}
+ */
+export async function enrolKnownKey(box, key, data) {
+  if (keysOf(box).some((k) => k.id === key.id)) throw new Error('That key is already in this box.');
+  const id = unb64(key.id).buffer;
+  return addKeyEntry(box, key.name, id, await prfFor(id), data);
 }
 
 /**
