@@ -32,6 +32,7 @@ The code is plain ES modules served as they are (no build). Each file below has 
 | `web/url.js` | 10 | | `safeUrl`: the only gate for what Open may navigate to. |
 | `web/github.js` | about 65 | api.github.com | List, read and write `boxes/NAME.json`. The token is only sent there. Refuses to overwrite a version with the same or a higher `rev`. |
 | `web/store.js` | 30 | IndexedDB | The library of locked boxes in the browser. |
+| `web/guidance.js` | about 160 | DOM and localStorage | Static documentation, contextual help dialogs, and the inline-help preference. Does not read box data or credentials and makes no network requests. |
 | `web/app.js` | about 270 | all of the above | The interface and its state. **Not type-checked.** It holds the unlocked data key and the plaintext items in memory (`S.unlocked`) while a box is open, handles the clipboard and the token. |
 
 Out of scope: the browser, the operating system, the hardware key's firmware, GitHub, the domain and its DNS.

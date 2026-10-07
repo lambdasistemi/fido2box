@@ -44,6 +44,19 @@ and the keys that open it.
 - **Settings:** the box repository (`owner/name`, remembered in this browser;
   `?repo=` also works) and an optional GitHub token for this session.
 
+- **Documentation:** an in-app guide to boxes, items, keys, GitHub backups,
+  tokens, and recovery. Topic links can be bookmarked or shared. The guide and
+  app footer also link to the published project documentation at `/docs/`.
+
+Question-mark buttons open contextual help without discarding the form you are
+filling in. Close the popup with **Close**, **Escape**, or a click outside it;
+**Read the full guide** opens the matching Documentation section. In **Settings
+→ Help and documentation**, turn **Show inline help** on or off. It starts
+enabled, applies immediately, and is remembered across reloads in this browser.
+Documentation remains available when inline help is off. If browser storage is
+unavailable, the setting applies until reload and the page explains that it
+could not be saved.
+
 Choose **Light**, **Dark**, or **System** in the header on any page. Your choice
 is remembered in this browser. System follows your device's appearance,
 including changes while the page is open. If browser storage is blocked, the
