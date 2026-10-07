@@ -1,0 +1,5 @@
+flowchart TB
+  App[app.js] -->|Effects| Adapters[WebAuthn<br/>store / GitHub]
+  App -->|Data| Crypto[crypto.js]
+  Adapters -->|Bytes| Crypto
+  App -->|Presentation| UI[DOM / theme<br/>guidance]

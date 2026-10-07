@@ -40,6 +40,29 @@ Read the
 and project constitution before changing behavior. Specifications for repository
 setup live in `specs/017-repository-quality/`.
 
+## System design
+
+Start with the [architecture baseline](architecture/system.md) and
+[design work plan](architecture/roadmap.md). Update them when a module boundary,
+key lifecycle, persistent format, or trust boundary changes. Keep proposed
+feature models separate until implementation evidence supports moving them into
+the baseline. The
+[system-design skill plan](architecture/system-design-skill.md) prepares a first
+slice using the existing shared workflow. The formal model, proofs and
+simulation have not started.
+
+Design diagrams are rendered locally from `docs/diagrams/*.mmd` using the
+Mermaid CLI pinned by this repository’s `flake.lock`:
+
+```sh
+nix shell --impure --expr 'let p = (builtins.getFlake (toString ./.)).inputs.nixpkgs.legacyPackages.x86_64-linux; in [ p.mermaid-cli p.python3 ]' -c python3 scripts/render-docs-diagrams.py
+```
+
+Commit the sources, SVGs and generated manifest together. The strict docs build
+rejects stale diagram assets and stale speech companions. Presentation checks
+currently cover the home, development and architecture pages; this does not
+certify the legacy documentation. Diagrams need no runtime CDN renderer.
+
 ## Spec-driven changes
 
 Constitution 1.1.0 is the governing baseline for new feature work. Write the

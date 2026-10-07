@@ -1,0 +1,48 @@
+{
+  "context-and-trust-boundaries": [
+    {
+      "text": "The website serves executable code to the browser. The browser asks an authenticator for credential-specific output and saves encrypted boxes locally or explicitly on GitHub. Plaintext exists in the browser while unlocked and can reach the operating-system clipboard. The browser, operating system and delivered origin remain trusted. Provenance is not protection against malicious code.",
+      "pause": 400
+    }
+  ],
+  "runtime-ownership-and-dependency-direction": [
+    {
+      "text": "The app composes the interface and sessions. Separate adapters handle the authenticator, IndexedDB and GitHub. The crypto module operates on bytes without browser effects. Appearance and guidance have no box-data access. Some key and session logic still lives in the untyped app module; the proposed refactor has not shipped.",
+      "pause": 400
+    }
+  ],
+  "data-model-and-lifetime": [
+    {
+      "text": "A box lists public credential metadata and encrypted items. Titles, addresses and secrets are encrypted durably. The unlocked page holds the data key and plaintext. Box names, revisions, credential identifiers and nicknames are public. A token can be encrypted inside a box or held only for the current page session.",
+      "pause": 400
+    }
+  ],
+  "key-and-identity-model": [
+    {
+      "text": "An authenticator, a credential, a box nickname and a hardware label are different things. Identification uses metadata even from locked boxes. A recognized credential requires fresh verification before enrollment. An inconclusive request does not prove the hardware is new. Older aliases are preserved, and different credentials do not prove different physical devices.",
+      "pause": 400
+    }
+  ],
+  "cryptographic-data-flow": [
+    {
+      "text": "A new box receives a fresh random data key. The authenticator returns a verified credential-specific secret; the browser derives a wrapping key, unwraps the data key, and decrypts items. Each encryption uses a fresh random initialization vector. Individual ciphertext authentication does not establish whole-file integrity or freshness.",
+      "pause": 400
+    }
+  ],
+  "lifecycle-and-synchronization": [
+    {
+      "text": "Import creates a locked local copy and unlock creates an in-memory session. Lock discards the session. The diagram also shows a current failure: Pull can replace the stored box while retaining stale unlocked state, and saving that state can damage the replacement. Removal does not rotate the data key and therefore is not revocation.",
+      "pause": 400
+    }
+  ],
+  "compatibility-and-evidence": [
+    {
+      "text": "Version one contains a single note; version two uses encrypted triples. Richer version-three records are still proposed. Tests cover concrete cryptographic controls, legacy fixtures and browser workflows using virtual keys. They do not prove every device, full-vault integrity, or closure of the open audit findings.",
+      "pause": 400
+    }
+  ],
+  "_source": {
+    "file": "system.md",
+    "sha256": "bc4dce30ed29d74d5da973a35e6780f03b8a6ee5f7ce081353223284a6111885"
+  }
+}

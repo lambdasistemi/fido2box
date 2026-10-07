@@ -1,0 +1,19 @@
+erDiagram
+  direction TB
+  BOX ||--o{ KEY : lists
+  BOX ||--o{ ITEM : contains
+  BOX {
+    int v
+    int rev
+    string rpId
+  }
+  KEY {
+    string name
+    string id
+    bytes wrapIv
+    bytes wrapped
+  }
+  ITEM {
+    bytes iv
+    bytes ct
+  }

@@ -1,0 +1,7 @@
+flowchart TB
+  Rulings[Operator<br/>decisions] -->|Record| Model[Lean statements]
+  Model -->|Review| Audit[Independent<br/>statement audit]
+  Audit -->|Accepted| Build[Proofs and<br/>isolated simulation]
+  Build -->|Review| Play[Audit and<br/>operator play]
+  Play -->|Revise| Rulings
+  Play -->|Agreement| Publish[Publish<br/>accepted slice]

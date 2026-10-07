@@ -34,6 +34,15 @@ nav:
   - Comparison with similar systems: comparison.md
   - Recovery and backups: recovery.md
   - Security boundaries: security.md
+  - System design:
+      - Architecture: architecture/system.md
+      - Design work plan: architecture/roadmap.md
+      - System-design skill plan: architecture/system-design-skill.md
   - Development: development.md
   - Releases and deployment: delivery.md
   - Logbook: logbook.md
+
+hooks:
+  - scripts/docs_diagrams.py
+extra_css:
+  - assets/design.css

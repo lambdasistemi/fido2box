@@ -1,0 +1,8 @@
+sequenceDiagram
+  participant Page as Browser
+  participant Key as Security key
+  Page->>Key: Credential PRF request
+  Key-->>Page: UV flag and PRF
+  Page->>Page: Derive wrapping key
+  Page->>Page: Unwrap data key
+  Page->>Page: Decrypt items
