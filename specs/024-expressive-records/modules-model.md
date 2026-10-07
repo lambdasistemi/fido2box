@@ -9,9 +9,9 @@ existing runtime/deployment boundary.
 
 - **Status**: new pure domain owner.
 - **Responsibility**: recovery records, validation, suggestions, immutable
-  drafts.
+  drafts, and pure optional-confirmation validation.
 - **Owns abstractions**: RecoveryRecord, Field, RecordDraft, DraftChange,
-  ValidationIssue.
+  ValidationIssue, Confirmation.
 - **Upstream dependencies**: none.
 - **Downstream consumers**: record-codec, record-editor, record-view,
   record-session.

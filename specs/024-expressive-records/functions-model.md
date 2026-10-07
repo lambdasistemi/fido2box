@@ -8,19 +8,21 @@ Unchanged call surfaces and implementation-private helpers are omitted.
 
 ## `web/records.js`
 
-| Signature                                                            | Requirement / constraints                                   |
-| -------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `createRecord(id: RecordId, title: string): RecoveryRecord`          | FR-001; new title validated before persistence              |
-| `suggestField(suggestion: SuggestionName, id: FieldId): Field`       | FR-003; names/defaults from spec; empty value               |
-| `beginDraft(record: RecoveryRecord): RecordDraft`                    | FR-001; original retained immutably                         |
-| `changeDraft(draft: RecordDraft, change: DraftChange): RecordDraft`  | FR-001–003; exact strings and ID-based changes              |
-| `validateRecord(record: RecoveryRecord): readonly ValidationIssue[]` | FR-002/009; strict schema and legacy flag consistency       |
-| `validateDraft(draft: RecordDraft): readonly ValidationIssue[]`      | FR-001/003/010; includes title provenance and reserved name |
-| `finishDraft(draft: RecordDraft): Result<RecoveryRecord>`            | FR-001/007; no partial invalid result                       |
+| Signature                                                           | Requirement / constraints                                       |
+| ------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `createRecord(id: RecordId, title: string): RecoveryRecord`         | FR-001; new title validated before persistence                  |
+| `suggestField(suggestion: SuggestionName, id: FieldId): Field`      | FR-003; names/defaults from spec; empty value                   |
+| `beginDraft(record: RecoveryRecord): RecordDraft`                   | FR-001; original retained immutably                             |
+| `changeDraft(draft: RecordDraft, change: DraftChange): RecordDraft` | FR-001–003; exact strings and ID-based changes                  |
+| `validateRecord(record: unknown): readonly ValidationIssue[]`       | FR-002/009; strict untrusted schema and legacy flag consistency |
+| `validateDraft(draft: RecordDraft): readonly ValidationIssue[]`     | FR-001/003/010; includes title provenance and reserved name     |
+| `finishDraft(draft: RecordDraft): Result<RecoveryRecord>`           | FR-001/007; no partial invalid result                           |
 
 SuggestionName is the closed set Account, Password or recovery key, Website,
 Backup codes, Notes. Empty new drafts use createRecord with a supplied ID;
-invalid draft titles may exist transiently but cannot be saved.
+invalid draft titles may exist transiently but cannot be saved. Optional double
+entry uses changeDraft confirmation changes; validateDraft and finishDraft
+reject mismatches without including either secret in errors.
 
 ## `web/record-codec.js`
 
@@ -52,12 +54,12 @@ not permission to invent missing IDs in a malformed current payload.
 | `encryptText(data: BufferSource, text: string): Promise<Sealed>`   | FR-007; fresh IV; exact encoded text, no schema                |
 | `decryptText(data: BufferSource, sealed: Sealed): Promise<string>` | FR-008; authenticated decryption rejects before interpretation |
 
-Existing encryption/wrapping primitives keep their construction. Planned removal
-of schema-owning encryptItem/decryptItem/parseItem/listItems/addItem/upgrade and
-relocation of keysOf/emptyVault/TOKEN_TITLE must be reviewed with updated
-callers and regression coverage before implementation. They are internal app
-exports, not a third-party API compatibility promise. No crypto helper is
-silently duplicated.
+Existing encryption/wrapping primitives keep their construction. Schema-owning
+encryptItem/decryptItem/parseItem/listItems/addItem/upgrade have been removed;
+keysOf/emptyVault/TOKEN_TITLE now belong to format/codec owners. All callers and
+legacy fixture regressions use the new ownership. They are internal app exports,
+not a third-party API compatibility promise. No crypto helper is silently
+duplicated.
 
 ## `web/store.js`
 
@@ -80,16 +82,21 @@ cannot reverse a committed save.
 Factory: `createBoxSessions(ports: BoxSessionPorts): BoxSessions`. The returned
 controller exposes the following signatures:
 
-| Method                                                                                                                                | Requirement / constraints                                                   |
-| ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `create(name: string, keyName: string, rpId: string): Promise<Result<SessionView>>`                                                   | FR-007; private fresh data key, enrollment, absent-source CAS               |
-| `unlock(name: string): Promise<Result<SessionView>>`                                                                                  | FR-007–009; source/generation capture, injected authenticator               |
-| `get(name: string): SessionView \| null`                                                                                              | FR-006/010; no key bytes in returned view                                   |
-| `prepareMigration(name: string, token: SessionToken, approved: boolean): Promise<Result<MigrationApproval>>`                          | FR-008; approved exact source only; verified durable backup before mutation |
-| `mutate(name: string, token: SessionToken, mutation: BoxMutation, approval: MigrationApproval \| null): Promise<Result<SessionView>>` | FR-001/007–010; common eligibility gate and atomic publication              |
-| `replace(name: string, expected: SourceIdentity \| null, next: SourceDocument): Promise<Result<StoredBox>>`                           | FR-007/009; invalidate immediately; stays locked on success/failure         |
-| `remove(name: string, expected: SourceIdentity): Promise<Result<void>>`                                                               | FR-007; invalidate immediately; guarded deletion, backups retained          |
-| `lock(name: string): void`                                                                                                            | FR-006; invalidate generation and cancel pending mutation transactions      |
+| Method                                                                                                                                 | Requirement / constraints                                                   |
+| -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `create(name: string, keyName: string, rpId: string, enrol?: (data: BufferSource) => Promise<KeyEntry>): Promise<Result<SessionView>>` | FR-007; private fresh data key, enrollment, absent-source CAS               |
+| `unlock(name: string): Promise<Result<SessionView>>`                                                                                   | FR-007–009; source/generation capture, injected authenticator               |
+| `get(name: string): SessionView \| null`                                                                                               | FR-006/010; no key bytes in returned view                                   |
+| `prepareMigration(name: string, token: SessionToken, approved: boolean): Promise<Result<MigrationApproval>>`                           | FR-008; approved exact source only; verified durable backup before mutation |
+| `mutate(name: string, token: SessionToken, mutation: BoxMutation, approval: MigrationApproval \| null): Promise<Result<SessionView>>`  | FR-001/007–010; common eligibility gate and atomic publication              |
+| `replace(name: string, expected: SourceIdentity \| null, next: SourceDocument): Promise<Result<StoredBox>>`                            | FR-007/009; invalidate immediately; stays locked on success/failure         |
+| `remove(name: string, expected: SourceIdentity): Promise<Result<void>>`                                                                | FR-007; invalidate immediately; guarded deletion, backups retained          |
+| `lock(name: string): void`                                                                                                             | FR-006; invalidate generation and cancel pending mutation transactions      |
+
+`generation(name: string): number` lets transport callers capture a generation
+before network IO and refuse a late response after lock or fresh unlock. The
+optional create enrollment callback preserves known-key selection without
+exposing the private key to UI state.
 
 Key and token edits call mutate. No app caller may bypass this controller for
 writes. Same-box write ordering and operation cancellation belong here,
@@ -126,7 +133,10 @@ View actions: copy(fieldId): Promise<void>, reveal(fieldId): void,
 hide(fieldId): void, edit(): void. Editor actions: change(change): void,
 reveal(fieldId): void, hide(fieldId): void, replace(fieldId): void, save():
 Promise<void>, cancel(): void. Arguments use the corresponding D1/D6 types;
-callbacks own effects outside views.
+callbacks own effects outside views. Editor actions also expose
+revealConfirmation(fieldId): void, hideConfirmation(fieldId): void and
+add(suggestion: Suggestion | null): void; confirmation changes use
+change(change).
 
 ## `web/record-session.js`
 
@@ -139,6 +149,9 @@ Factory: `createRecordSession(ports: RecordSessionPorts): RecordSession`.
 | `requestLeave(): boolean`                                    | FR-006; explicit dirty-draft confirmation                                               |
 | `reset(reason: "leave" \| "lock" \| "replace"): void`        | FR-006; immediate discard on lock/replace                                               |
 | `render(session: SessionView): HTMLElement`                  | FR-011; list and single active detail/editor, preserves draft across incidental renders |
+
+`dirty(): boolean` supports the browser unload guard; an optional refresh port
+runs after commit and reports refresh failure without undoing the saved result.
 
 Save/copy/change/reveal events are bound internally to the modeled ports.
 Navigation, tab switching, and record switching must use requestLeave; lock does

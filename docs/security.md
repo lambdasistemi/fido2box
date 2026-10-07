@@ -12,10 +12,13 @@ is not necessarily a PIN, and enrollment currently also permits platform
 authenticators.
 
 The [2026-10-06 review](https://github.com/lambdasistemi/fido2box/issues/16)
-identified unresolved problems: stale unlocked state after Pull, continued
-access after removing a key, unauthenticated vault structure/revision, and a gap
-between hardware-key claims and enrollment policy. This repository setup does
-not fix those findings or constitute a cryptographic certification.
+identified stale unlocked state after Pull, continued access after removing a
+key, unauthenticated vault structure/revision, and a gap between hardware-key
+claims and enrollment policy. The record implementation now invalidates old
+sessions on Pull and checks the complete saved source before writing; regression
+tests cover replacement with another data key at the same revision. The other
+findings remain unresolved. This is not a cryptographic certification or an
+independent audit.
 
 Individual ciphertext authentication rejects bit changes but does not reject all
 file modifications. The current format permits deletion and replay of records.
@@ -33,6 +36,11 @@ assets are local; there are no external fonts or CDN scripts. Changes to docs
 assets deserve the same origin-trust review as changes to the app.
 
 Clipboard contents can be read by other software. Clearing after a minute is
-best-effort and can fail if the page is closed or unfocused. Keep secrets out of
-issues, screenshots, logs, and test fixtures. See the repository's
+best-effort and can fail if the page is closed or unfocused. The delayed attempt
+compares an ephemeral SHA-256 fingerprint before clearing and leaves different
+clipboard content alone. Lock does not cancel the attempt; clipboard history and
+other applications are outside its control. Hidden and visible fields receive
+the same encryption; hiding is presentation, not protection from an unlocked
+browser. Keep secrets out of issues, screenshots, logs, and test fixtures. See
+the repository's
 [security policy](https://github.com/lambdasistemi/fido2box/blob/main/SECURITY.md).

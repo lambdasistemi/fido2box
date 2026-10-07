@@ -57,7 +57,7 @@ Legacy recognition:
 - Missing title maps to empty; missing, empty, or whitespace-only legacy titles
   set legacyUntitled true. URL is omitted when absent, otherwise becomes a
   visible URL field (even when empty). Secret becomes a hidden text field named
-  Secret.
+  Secret. Converted fields are ordered Secret, then Website when present.
 - A v2 title github-token uses ServiceRecord with absent URL mapped to empty;
   its historical reserved meaning cannot be safely inferred differently.
 - Explicit title editing clears legacyUntitled and requires a nonblank title.
@@ -148,10 +148,19 @@ submission; storage CAS catches replacement by another tab.
 
 ## D6 — Draft and presentation state (`records.js`, `record-session.js`)
 
-RecordDraft holds immutable original (or null), candidate, removed-field undo
-entries with original positions, and validation state. DraftChange covers title,
-add/update/remove/undo by ID. UI state separately owns revealed IDs, explicitly
-replacing IDs, active record, focus target, and session generation.
+RecordDraft holds immutable original, candidate, removed fields, and an ordered
+list of all field IDs for undo. New drafts start from createRecord; validation
+is computed, not stored. DraftChange covers title/add/update/remove/undo by ID.
+UI state owns revealed/replacing IDs, active record, focus and generation.
+
+The draft owns optional confirmations by field ID: exact second-entry strings,
+initially empty when enabled. They are never populated from the first entry.
+DraftChange additionally supports confirmation(fieldId, value), where null
+disables it. Validation compares enabled entries exactly with the candidate;
+finishDraft returns only the RecoveryRecord, not confirmations or undo state.
+Removing a field drops its confirmation; Undo restores the field, not the
+confirmation. Cancel, save, departure and lock discard confirmation state.
+Independent reveal choices for entry and confirmation belong to presentation.
 
 Untouched values remain original strings regardless of control rendering. A
 deliberate value input replaces only that value with the browser input string.
@@ -223,13 +232,14 @@ validation. Box-session validates this binding against the backup store on every
 migration.
 
 DraftChange is a tagged union: title(value), add(field), update(fieldId, patch),
-remove(fieldId), undo(fieldId). A patch may contain name, kind, hidden, value;
-it may not replace identity. Validation issues refer to title or field ID.
-RecordSessionPorts use the box-session/clipboard interfaces in the functions
-model, plus confirmDiscard(): boolean, approveMigration(source):
-Promise<boolean>, notice(code): void, and newId(): string. ClipboardPorts
-declare readText(): Promise<string>, writeText(value): Promise<void>,
-fingerprint(value: string): Promise<string>, schedule(callback, milliseconds):
-number, cancel(timerId): void, notice(code): void. BoxSessionPorts declare
-storage/backup methods from store, newId(): string, unlock(box):
-Promise<ArrayBuffer>, and enrol(name, data): Promise<KeyEntry>.
+remove(fieldId), undo(fieldId), confirmation(fieldId, valueOrNull). A patch may
+contain name, kind, hidden, value; it may not replace identity. Validation
+issues refer to title or field ID. RecordSessionPorts use the
+box-session/clipboard interfaces in the functions model, plus confirmDiscard():
+boolean, approveMigration(source): Promise<boolean>, notice(code): void, and
+newId(): string. ClipboardPorts declare readText(): Promise<string>,
+writeText(value): Promise<void>, fingerprint(value: string): Promise<string>,
+schedule(callback, milliseconds): number, cancel(timerId): void, notice(code):
+void. BoxSessionPorts declare storage/backup methods from store, newId():
+string, unlock(box): Promise<ArrayBuffer>, and enrol(name, data):
+Promise<KeyEntry>.

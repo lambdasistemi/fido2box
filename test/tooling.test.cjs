@@ -25,3 +25,11 @@ assert.match(setup, /uses:\s*cachix\/cachix-action@v17\s/,
 assert.match(setup, /skipPush:\s*\$\{\{ inputs\.cachix-auth-token == '' \}\}/,
   'forks without a token must retain read-only cache access');
 console.log('ok  every workflow uses the Node.js 24 cache helper with tokenless read-only access');
+
+const { createHash } = require('node:crypto');
+const diagram = JSON.parse(fs.readFileSync('docs/assets/recovery-path.digest.json', 'utf8'));
+for (const [extension, digest] of [['mmd', diagram.sourceSha256], ['svg', diagram.renderSha256]]) {
+  assert.equal(createHash('sha256').update(fs.readFileSync('docs/assets/recovery-path.' + extension)).digest('hex'), digest,
+    're-render and visually inspect the recovery diagram when its source or render changes');
+}
+console.log('ok  published recovery diagram is bound to its reviewed source and render');

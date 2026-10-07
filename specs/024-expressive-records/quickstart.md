@@ -1,14 +1,14 @@
 # Verification quickstart: Expressive recovery records
 
-This is a future implementation acceptance recipe, not proof that new records
-are already available. Use only synthetic data and localhost rehearsal keys.
+This is the acceptance recipe for the implementation in PR #33. Executed
+evidence is recorded in tasks.md. Use only synthetic data and localhost
+rehearsal keys.
 
-## Current planning artifacts
+## Design and evidence
 
 Read plan.md, then modules-model.md, data-model.md, functions-model.md, and
-contracts/. The requirements checklist records scenario traceability. Technical
-planning is followed by task generation and consistency analysis; do not begin
-behavior implementation directly from this page.
+contracts/. The requirements checklist records scenario traceability; tasks.md
+distinguishes executed implementation checks from review and release decisions.
 
 ## Reproducible commands
 
@@ -19,17 +19,18 @@ nix build .#site
 nix develop --quiet -c bash scripts/smoke-site.sh result
 ```
 
-The current baseline has 23 core unit checks, 2 tooling checks, and 110 browser
-checks. Counts must grow with coverage; never preserve these counts by dropping
-old cases. Every new/changed JS owner, including app orchestration, enters
-checkJs. Real-browser coverage uses the existing CDP harness and virtual PRF
-authenticator. That is not a real-hardware interoperability test.
+The suite includes core, record/codec, envelope, frozen legacy, clipboard and
+GitHub source checks, tooling guards, and 198 browser checks. Every new/changed
+JS owner, including app orchestration, enters checkJs. Real-browser coverage
+uses the existing CDP harness and virtual PRF authenticator. That is not a
+real-hardware interoperability test.
 
 ## Recovery acceptance
 
 1. Create a titled record with Account, two Website fields, hidden recovery key,
    hidden multiline codes, Notes, and duplicate-name custom fields. Also test
-   zero fields, empty values, and the 20-field/10,000-character baseline.
+   zero fields, empty values, and the 20-field/10,000-character baseline. A
+   secret-only record and an empty Website must save without an address error.
 2. Rename/change kind/change hiding/remove/undo/cancel/save. Compare exact
    stored strings and order after lock/reload/unlock; use CR/LF/CRLF and Unicode
    fixtures.
@@ -41,6 +42,10 @@ authenticator. That is not a real-hardware interoperability test.
 5. Use keyboard only and 320-pixel layouts in both themes. Check focus
    restoration and dirty-draft guards for tab/record/hash changes and browser
    Back/Forward.
+6. Type and reveal/re-hide a new secret. Enable optional confirmation: it starts
+   empty, checks exact equality after either edit, and can be disabled. Test
+   whitespace/newline mismatches, independent reveal, keyboard/phone controls,
+   removal/undo, and no confirmation in saved/exported data or after lock.
 
 ## Compatibility and failure acceptance
 

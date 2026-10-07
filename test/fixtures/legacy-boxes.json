@@ -1,0 +1,25 @@
+{
+  "prf": "c3ludGhldGljLWZpeHR1cmUtcHJmLTAwMDAwMDAwMDAw",
+  "note": "{\"secret\":\"JSON-looking note\"}\r\nSecret Key: A3-LHYDTN-ABCDEF-GHJKL-MNPQR-STUVW-XYZ23\rTrailing 0001  \n",
+  "triples": [
+    { "title": "  ", "secret": " 0001\r\nline\rend\n ", "url": "" },
+    { "title": "github-token", "url": "https://github.com/settings/tokens", "secret": "synthetic-token" }
+  ],
+  "v1": {
+    "v": 1,
+    "rpId": "localhost",
+    "entries": [{ "name": "synthetic fixture", "id": "Zml4dHVyZS1jcmVkZW50aWFs", "wrapIv": "dubouUvm1AcoGFYY", "wrapped": "dekBXXFMlcR2XZc4Pgy9Ae9Q1sWjeOgNo1IAArZgaL7fDMNHpYlFFyMDI8DMuk7l" }],
+    "iv": "AAAAAAAAAAAAAAAA",
+    "ct": "dZ7Gu9Ze5skqkot/S2PftL4sOThB7wcP7vHH5ueCUFwdOoXOT4aYTVa6S9WA/UQC4V4FsjdcB+cT8npgZycGrqIjE0ffgQGw/tqHkkBzZcEETwSqLfw3IF3KfS2Zf+GA52BuJya94Sm1M0j/1ksgIVDNA9Q3"
+  },
+  "v2": {
+    "v": 2,
+    "rpId": "localhost",
+    "rev": 4,
+    "keys": [{ "name": "synthetic fixture", "id": "Zml4dHVyZS1jcmVkZW50aWFs", "wrapIv": "dubouUvm1AcoGFYY", "wrapped": "dekBXXFMlcR2XZc4Pgy9Ae9Q1sWjeOgNo1IAArZgaL7fDMNHpYlFFyMDI8DMuk7l" }],
+    "items": [
+      { "iv": "+0rDcZzDiaRqSMz1", "ct": "A7a+we7DJTpD44hWFsKkAZjshRA+IDfMOd6C9D4p6OHsSJWs16dVZhNzoxPGhg+eJaIKyXtdLZL0afsi9h194E2inKbBLxa0" },
+      { "iv": "TW69r0eDn5aDdz/P", "ct": "L/WKk42HGTtnBevn5s9NdtNUpWVdEFY54Vw2EuhlmvdQX0pLvr/jP4JBuqbTrWelhQGhVIzEh7n3vZbSGhG66R1qTSPDxOS92AaMbdHGVqZA9PZV/3YM9LpCqGo3jXQThxQz8heVxSfPrYIXvak=" }
+    ]
+  }
+}

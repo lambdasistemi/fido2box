@@ -9,7 +9,8 @@
 
 **Created**: 2026-10-07
 
-**Status**: Specified; implementation not started
+**Status**: Implemented and verified in PR #33; operator waived independent
+review and authorized merge. Evidence and merge conditions are in tasks.md.
 
 **Input**: Named user-added fields, hidden or visible; URLs are links instead of
 an Open button; each value has a copy button. Keep code in small, focused
@@ -88,7 +89,10 @@ unlock it using an enrolled test authenticator.
    changes; cancelling the edit leaves the saved record unchanged.
 3. **Given** a new record, **When** it contains only named recovery instructions
    and no URL or password, **Then** it saves successfully. Empty field values
-   are retained; blank titles or field names fail with an associated error.
+   are retained; blank titles or field names fail with an associated error. In
+   particular, a secret-only record and a record with an empty Website field
+   save and reopen without the old required-address error; neither creates a
+   link.
 4. **Given** two fields with the same label, **When** I edit, remove, or copy
    one, **Then** the other remains unchanged and controls identify their field
    by its position as well as its label.
@@ -118,10 +122,20 @@ codes, and visible and hidden URLs; exercise each action independently.
    masked with no active link or URL in tooltips or accessible names. Explicit
    Reveal permits navigation; Hide, leaving the record, or locking resets reveal
    state.
-4. **Given** a denied clipboard operation, **When** I copy, **Then** failure is
+
+4. **Given** a secret being created or replaced, **When** I type, **Then** I can
+   Show or Hide the entry without changing its saved concealment setting.
+   Optional double entry is off by default. Enabling it creates an empty,
+   independently revealable confirmation; it never copies the first value.
+5. **Given** enabled double entry, **When** either entry changes, **Then** Save
+   requires exact equality, including spaces and line breaks, with a non-secret
+   mismatch message. I can correct either entry or disable confirmation. Save,
+   Cancel, field removal, departure, and lock clear confirmation and reveal
+   state; confirmation is never stored, exported, or synchronized.
+6. **Given** a denied clipboard operation, **When** I copy, **Then** failure is
    announced without the value and without claiming success. On successful copy,
    guidance describes clearing as best effort, not guaranteed erasure.
-5. **Given** a concealed field in an existing record, **When** I enter editing,
+7. **Given** a concealed field in an existing record, **When** I enter editing,
    **Then** it stays concealed until I deliberately reveal or replace its value;
    saving or cancelling closes editing without persisting temporary reveal
    state.
@@ -216,6 +230,9 @@ unlock again.
   status announcements, and usable 320-pixel layouts (Story 2 and edge cases).
 - **FR-012**: Update the user guide in the implementation delivery to explain
   field kinds, hiding, links, copying, migration, and recovery limitations.
+- **Optional secret confirmation**: Offer Show/Hide during secret entry and
+  optional exact double entry, following Stories 2.6–2.7. Confirmation is
+  transient editor state, never a second persisted field or a mandatory step.
 
 ### Privacy, Recovery, and Interaction Requirements _(mandatory assessment)_
 
@@ -285,9 +302,9 @@ hardware-only enforcement are not solved or newly claimed by this feature.
   editor cannot reconstruct lost keys, files, or origin identity.
 - Zero-field titled records and empty named fields are allowed. Custom-field
   hiding defaults to on; the suggestions above provide visible conveniences.
-- Schema, module interfaces, migration mechanics, and tests are planning work,
-  not specified implementations. The next phase produces the modules model
-  before data and function models, following constitution 1.1.0.
+- Schema, module interfaces, migration mechanics, and tests were modeled before
+  implementation, following constitution 1.1.0. Implementation evidence is
+  recorded in tasks.md; the model alone does not establish browser behavior.
 - Untouched imported values retain their original line endings even after reveal
   or unrelated edits. Deliberately editing a value replaces it with the browser
   control's input; editing CR/CRLF content shows a warning about LF

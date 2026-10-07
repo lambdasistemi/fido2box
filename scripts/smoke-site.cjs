@@ -18,6 +18,11 @@ async function main() {
     const base = 'http://127.0.0.1:' + server.address().port;
     for (const [route, expected, diagramCount = 0] of [
       ['/', '<title>fido2box</title>'], ['/crypto.js', 'wrapDataKey'],
+      ['/records.js','finishDraft'], ['/record-codec.js','decodeRecord'],
+      ['/box-format.js','readSource'], ['/box-session.js','createBoxSessions'],
+      ['/record-session.js','createRecordSession'], ['/record-view.js','recordView'],
+      ['/record-editor.js','recordEditor'], ['/dom.js','element'], ['/clipboard.js','createClipboardController'],
+      ['/docs/assets/recovery-path.svg', '<svg'],
       ['/docs/', 'fido2box', 1], ['/docs/development/', 'Development'],
       ['/docs/architecture/system/', 'Context and trust boundaries', 5],
       ['/docs/architecture/roadmap/', 'Decisions and required evidence', 1],

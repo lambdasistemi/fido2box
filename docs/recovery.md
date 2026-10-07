@@ -1,5 +1,8 @@
 # Recovery and backups
 
+Keep the information you will need after losing a device together, then rehearse
+recovering it from an encrypted file and a spare enrolled key.
+
 1. Open the app at `https://fido2box.dev/` and create a box with a compatible
    security key. Keep a separate backup key and enroll it while the box is open.
 2. Add the recovery items you need. Download the encrypted JSON file and keep a
@@ -20,10 +23,55 @@ removed key can also decrypt future contents encrypted under that same data key.
 For revocation, create a new box with retained keys and fresh encryption. This
 does not erase information already exposed in old copies.
 
-Until [issue #16](https://github.com/lambdasistemi/fido2box/issues/16) is
-resolved, lock a box before Pull and unlock it again afterward. Keep downloaded
-backups before synchronization; the current Pull flow can retain stale unlocked
-state.
+Pull clears the unlocked session and any discarded draft before replacing the
+box. Unlock the fetched copy before editing it. Conflicting writes from another
+tab are refused; unlock the current copy and try again. Keep downloaded backups
+before synchronization. The broader findings in
+[issue #16](https://github.com/lambdasistemi/fido2box/issues/16) remain open.
+
+## Record the values you need
+
+Choose **New record**, give it a title and add fields. Account, Password or
+recovery key, Website, Backup codes and Notes are optional starting points. A
+custom field starts hidden. Choose text, multiline or URL independently of its
+hiding setting. Names may repeat; each control includes the field's position.
+Empty values and title-only records are valid.
+
+Each value has Copy, including hidden and empty values. Visible URL values link
+only to HTTPS or loopback HTTP for rehearsal; invalid or blank addresses can be
+saved and copied but do not navigate. Plain text never becomes a link by itself.
+Reveal and Hide are temporary and independent for each field.
+
+In Edit, existing hidden values stay absent from controls until you choose
+Reveal or Replace. Replace starts an empty buffer. Secret entry offers Show/Hide
+and optional **Confirm this value**. Confirmation begins empty, compares spaces
+and line breaks exactly, and can be disabled. It is never exported or saved.
+Remove field offers Undo until Save. Cancel leaves the saved record intact;
+navigation asks before discarding changes, while Lock discards immediately.
+
+Untouched imported CR/CRLF text remains exact, even after Reveal or a title
+edit. Deliberately editing that value uses the browser's LF line endings; a
+warning appears before the control. A failed save leaves the draft available and
+the previous saved source unchanged.
+
+## Open older or unfamiliar files
+
+Legacy notes retain their complete text. Legacy title/address/secret records
+become fields, preserving empty titles and values. Opening, copying, downloading
+and synchronizing do not migrate the format. The first content, key or token
+edit asks permission to write v3 and requires a verified encrypted backup first.
+If backup storage fails, saving is refused.
+
+**Older releases cannot safely edit v3 files.** The retained original recovers
+only pre-migration data. Boxes and Sync list **Retained backups**, including
+deleted box names, with encrypted downloads. Both databases live in the same
+browser: download an external copy against browser-data loss.
+
+Unknown envelope or record data makes the box read-only. Supported sibling
+records remain viewable and copyable; the original encrypted file remains
+downloadable and can be pushed without reconstruction. Push refuses to overwrite
+an unfamiliar or malformed remote envelope. This is a format check, not an
+authentication of remote revision metadata or unseen encrypted payloads.
 
 ## Recognizing a key and choosing its name
 

@@ -43,6 +43,7 @@
         gnutar
         gzip
         python3
+        docsPkgs.lean4
       ];
       verification = import ./nix/checks.nix {
         inherit

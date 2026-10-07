@@ -3,14 +3,15 @@
 Keep a few secrets behind a hardware key (FIDO2). One page, no accounts, no
 server logic.
 
-Each **item** has three things: a title, **field 1** (an `https://` address to
-open) and **field 2** (a secret to copy). You plug in a key, press **Unlock**,
-enter its PIN and touch it. The page then lists your items: **Open** goes to
-field 1, **Copy** copies field 2 (and clears the clipboard after a minute).
+Each **record** has a title and any number of named fields. Keep account names,
+recovery keys, backup codes, addresses and instructions together. No URL or
+password is required. Plug in an enrolled key, press **Unlock**, verify yourself
+and touch it. Each value has **Copy**; permitted URL values are links. Hidden
+values stay concealed until **Reveal**, and the clipboard clear after a minute
+is best effort.
 
 It was made for "I lost every device: how do I get back into my password
-manager?" (field 1 = the sign-in page, field 2 = the Secret Key), but it knows
-nothing about any particular service.
+manager?", but it knows nothing about any particular service.
 
 ## How it works, in plain words
 
@@ -40,9 +41,9 @@ when inline help is off.
 - **Boxes:** the boxes in this browser (kept in IndexedDB, locked) and in a
   GitHub repository (`boxes/NAME.json`), with a status for each: in sync, ahead
   of GitHub, behind GitHub, only here, only on GitHub. New box, import a file.
-- **A box:** _Items_ (unlock with a key, then add, open, copy, delete), _Keys_
-  (add, remove, detect which one is inserted), _Sync_ (push, pull, download,
-  delete from this browser).
+- **A box:** _Items_ (unlock, create/edit records, reveal, copy and delete),
+  _Keys_ (add, remove, detect which one is inserted), _Sync_ (push, pull,
+  download, delete from this browser).
 - **Keys:** every key across your boxes, and which boxes it opens. A web page
   cannot see which key is plugged in until you touch it, so _Detect_ asks the
   key to sign and matches the answer.
@@ -69,13 +70,39 @@ controls still work for the current page. On phones, box and item lists stack so
 the actions remain visible. Form labels, visible keyboard focus, box links, and
 a Skip to content link support keyboard navigation.
 
-Every change to a box raises its `rev` and is saved in the browser at once.
-Nothing reaches GitHub until you press **Push**. Push refuses to overwrite a
-version with the same or a higher `rev`, and Pull asks first when your copy is
-newer. A GitHub token limited to the box repository (Contents: read and write)
-is kept as an item inside the box, so unlocking the box is what lets the app
-talk to GitHub; it is never shown. Fine-grained tokens expire, so renew it when
-GitHub refuses it.
+Saving a record or changing keys/tokens raises the box's `rev` after the
+encrypted write succeeds. Unsaved record drafts remain only in memory. Nothing
+reaches GitHub until you press **Push**. Push refuses to overwrite a version
+with the same or a higher `rev`, and Pull asks first when your copy is newer. A
+GitHub token limited to the box repository (Contents: read and write) is kept as
+a separate encrypted service record, so unlocking the box lets the app talk to
+GitHub; it is never shown. Fine-grained tokens expire, so renew it when GitHub
+refuses it.
+
+## What you can do with recovery records
+
+<!-- diagram: recovery-path -->
+
+![Import an encrypted backup, unlock with an enrolled key, then use or edit records.](docs/assets/recovery-path.svg)
+
+The file remains encrypted in storage; unlocked records live in memory.
+[Diagram source](docs/assets/recovery-path.mmd).
+
+Choose **New record** and add optional suggestions or custom fields. Text,
+multiline and URL kinds are independent of the **Hidden when viewing** setting.
+Custom fields start hidden; duplicate names and empty values are allowed.
+Existing hidden values stay out of form controls until **Reveal** or
+**Replace**; Replace starts empty. Optional confirmation starts off and checks
+exact spaces and line breaks when enabled. It is never saved. Cancel preserves
+the saved record; Lock discards the draft immediately.
+
+Old boxes open without rewriting. Their first edit asks permission to migrate to
+v3 and retains a verified encrypted original first. Download it from **Retained
+backups** in Boxes or Sync, even after deleting the active box. Older releases
+cannot safely edit v3, and the original backup cannot recover later edits.
+Unsupported data makes the whole box read-only, with the original file still
+downloadable. Pull clears the old unlocked session; unlock the fetched box
+before editing it. See [recovery and backups](docs/recovery.md).
 
 Removing a key does not revoke it: anyone who ever had it can still open older
 copies of the box. To revoke, make a new box.
@@ -124,7 +151,7 @@ applicable.
 the real app in headless Chrome with a virtual security key (WebAuthn with PRF),
 IndexedDB and a fake GitHub. It requires Chrome or Chromium on the path and
 fails without it; the Nix shell supplies Chromium. `just typecheck` type-checks
-the core modules from their JSDoc (the source is what is served: there is no
+all app modules from their JSDoc (the source is what is served: there is no
 build).
 
 ## License

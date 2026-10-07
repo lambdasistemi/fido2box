@@ -1,7 +1,7 @@
 {
   "system-design": [
     {
-      "text": "The architecture describes the shipped system. The work plan records future decisions. The existing system-design skill will turn operator rulings into a model, audit and playable simulation; that formal slice has not started.",
+      "text": "The architecture retains its pinned pre-feature snapshot. Expressive records now use separate record, codec, envelope, storage, session, view, editor and clipboard modules, all included in strict JavaScript type checking. Browser regressions and twelve abstract proofs cover their documented boundaries. The work plan separately proposes an independently audited model and playable simulation; that formal slice has not started.",
       "pause": 400
     }
   ],
@@ -13,6 +13,6 @@
   ],
   "_source": {
     "file": "development.md",
-    "sha256": "4ee3b25ac1dd163144c46a053ad6bb6a375a4d0d1665633cfabdc9a5ee22d050"
+    "sha256": "8e1db2a1a4987323edc76e1b7a4021a2d1ef8b3dccea786d9ec9a8ee9f7a002d"
   }
 }

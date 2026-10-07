@@ -1,8 +1,8 @@
 // @ts-check
 // The box repository on GitHub: boxes/NAME.json, one file per box, through the contents API. The token is only ever sent to api.github.com.
 import { b64, unb64, enc, dec } from './crypto.js';
+import { readSource, inspectBox } from './box-format.js';
 
-/** @typedef {import('./crypto.js').Box} Box */
 /** @typedef {(url: string, init?: RequestInit) => Promise<{ status: number, ok: boolean, json: () => Promise<any> }>} Fetch  injectable, for tests */
 
 /** What a box may be called: letters, digits, - and _ (up to 40). */
@@ -29,7 +29,7 @@ export async function listRemote(repo, token, f) {
 }
 /**
  * The box called `name`, parsed, or null when it is not there.
- * @param {string} repo @param {string} token @param {string} name @param {Fetch} [f] @returns {Promise<Box | null>}
+ * @param {string} repo @param {string} token @param {string} name @param {Fetch} [f] @returns {Promise<import('./box-format.js').SourceDocument | null>}
  */
 export async function fetchRemote(repo, token, name, f) {
   const get = f || fetch;
@@ -37,7 +37,9 @@ export async function fetchRemote(repo, token, name, f) {
   if (r.status === 404) return null;
   if (r.status !== 200) throw ghFail(r.status);
   const cur = await r.json();
-  return JSON.parse(dec.decode(unb64(String(cur.content).replace(/\s/g, ''))));
+  const source = readSource(dec.decode(unb64(String(cur.content).replace(/\s/g, ''))));
+  if (!source.ok) throw Object.assign(new Error('Invalid encrypted source'), {name:'UnsupportedRemote'});
+  return source.value;
 }
 /**
  * Write `path` (default box.json) in `repo` with one commit. Refuses to replace a box whose rev is the same or higher.
@@ -57,6 +59,7 @@ export async function saveToGitHub(repo, token, text, rev, f, path) {
     let remoteText = '', remote = null;
     try { remoteText = dec.decode(unb64(String(cur.content).replace(/\s/g, ''))); remote = JSON.parse(remoteText); } catch (e) { /* unreadable remote: compared as text below */ }
     if (remoteText === text) return 'unchanged';
+    if (!inspectBox(remote).writable) throw fail('UnsupportedRemote', 'The remote format cannot safely be overwritten.');
     if (remote && (remote.rev || 0) >= rev) throw fail('RemoteNewer', 'newer', { rev: remote.rev || 0 });
   } else if (g.status !== 404) throw fail(g.status === 401 || g.status === 403 ? 'BadToken' : 'GitHubError', 'github ' + g.status);
   const p = await get(url, { method: 'PUT', headers: { ...h, 'Content-Type': 'application/json' },
