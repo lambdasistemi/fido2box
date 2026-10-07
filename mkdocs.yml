@@ -1,0 +1,38 @@
+site_name: fido2box
+site_description: Recovery secrets protected by WebAuthn PRF
+site_url: https://fido2box.dev/docs/
+repo_url: https://github.com/lambdasistemi/fido2box
+theme:
+  name: material
+  font: false
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - content.code.copy
+plugins:
+  - search
+markdown_extensions:
+  - admonition
+  - tables
+  - pymdownx.superfences
+nav:
+  - Overview: index.md
+  - Recovery and backups: recovery.md
+  - Security boundaries: security.md
+  - Development: development.md
+  - Releases and deployment: delivery.md
+  - Logbook: logbook.md

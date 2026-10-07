@@ -1,0 +1,33 @@
+# Security boundaries
+
+The core uses WebCrypto: a random 256-bit data key, AES-256-GCM with fresh
+random 96-bit IVs, and HKDF-SHA-256 over a credential's WebAuthn PRF output.
+Unlocking requires user verification and checks the UV flag. User verification
+is not necessarily a PIN, and enrollment currently also permits platform
+authenticators.
+
+The [2026-10-06 review](https://github.com/lambdasistemi/fido2box/issues/16)
+identified unresolved problems: stale unlocked state after Pull, continued
+access after removing a key, unauthenticated vault structure/revision, and a gap
+between hardware-key claims and enrollment policy. This repository setup does
+not fix those findings or constitute a cryptographic certification.
+
+Individual ciphertext authentication rejects bit changes but does not reject all
+file modifications. The current format permits deletion and replay of records.
+Rejecting a complete historical vault also requires trusted freshness state
+outside the file.
+
+The browser receives plaintext and raw data-key material while unlocked.
+Delivered JavaScript, browser extensions, the OS, and authenticator
+implementation remain trusted. Provenance lets an operator inspect served bytes;
+it does not stop a compromised origin from serving malicious code during an
+unlock.
+
+Documentation shares the app origin. Its build dependencies are locked and its
+assets are local; there are no external fonts or CDN scripts. Changes to docs
+assets deserve the same origin-trust review as changes to the app.
+
+Clipboard contents can be read by other software. Clearing after a minute is
+best-effort and can fail if the page is closed or unfocused. Keep secrets out of
+issues, screenshots, logs, and test fixtures. See the repository's
+[security policy](https://github.com/lambdasistemi/fido2box/blob/main/SECURITY.md).

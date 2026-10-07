@@ -24,4 +24,4 @@ while read -r sum file; do
   got=$(git show "$commit:web/$file" | sha256sum | cut -d' ' -f1)
   if [ "$got" = "$sum" ]; then echo "ok  $file"; else echo "DIFFERS from repo  $file"; bad=1; fi
 done < "$tmp/SHA256SUMS"
-[ "$bad" = 0 ] && echo "VERIFIED" || { echo "MISMATCH"; exit 1; }
+if [ "$bad" = 0 ]; then echo "VERIFIED"; else echo "MISMATCH"; exit 1; fi

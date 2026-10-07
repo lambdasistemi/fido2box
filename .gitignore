@@ -1,1 +1,8 @@
 node_modules
+/gate.sh
+/.llm/
+/.orch/
+/.search-board/
+/result*
+/site/
+/dist/
