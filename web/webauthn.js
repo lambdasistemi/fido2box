@@ -1,9 +1,10 @@
 // @ts-check
 // Everything that talks to a hardware key through the browser (WebAuthn). No cryptography lives here: the secret number
 // that a key returns (its PRF output) is handed to crypto.js. Every request asks for the PIN (user verification) and times out after a minute.
-import { addKeyEntry, keysOf, unb64, b64, unwrapDataKey, enc, dec } from './crypto.js';
+import { unb64, b64, unwrapDataKey, wrapDataKey, enc, dec } from './crypto.js';
+import { keysOf } from './box-format.js';
 
-/** @typedef {import('./crypto.js').Box} Box */
+/** @typedef {import('./box-format.js').Box} Box */
 
 /**
  * A credential belongs to one website name (its rpId). Default: the host serving the page.
@@ -58,20 +59,19 @@ export async function unlockVault(box) {
 }
 /**
  * Enrol the key that is plugged in: make its credential (PIN, touch), read its secret number (PIN, touch), lock the data key with it.
- * @param {Box} box @param {string} name @param {BufferSource} data @param {string[]} [excluded] @returns {Promise<Box>}
+ * @param {string} name @param {BufferSource} data @param {string[]} [excluded] @returns {Promise<import('./box-format.js').KeyEntry>}
  */
-export async function enrolKey(box, name, data, excluded = []) {
-  const id = await createCredential(name, [...new Set([...excluded, ...keysOf(box).map((k) => k.id)])]);
-  return addKeyEntry(box, name, id, await prfFor(id), data);
+export async function enrolKey(name, data, excluded = []) {
+  const id = await createCredential(name, [...new Set(excluded)]);
+  return {name,id:b64(id),...await wrapDataKey(data,await prfFor(id))};
 }
 
 /** Reuse a recognized credential, requiring its key again before wrapping this box's data key.
- * @param {Box} box @param {{id: string, name: string}} key @param {BufferSource} data @returns {Promise<Box>}
+ * @param {{id: string, name: string}} key @param {BufferSource} data @returns {Promise<import('./box-format.js').KeyEntry>}
  */
-export async function enrolKnownKey(box, key, data) {
-  if (keysOf(box).some((k) => k.id === key.id)) throw new Error('That key is already in this box.');
+export async function enrolKnownKey(key, data) {
   const id = unb64(key.id).buffer;
-  return addKeyEntry(box, key.name, id, await prfFor(id), data);
+  return {name:key.name,id:key.id,...await wrapDataKey(data,await prfFor(id))};
 }
 
 /**

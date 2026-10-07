@@ -69,11 +69,6 @@ export const lib = {
       });
     } catch { return { ok: false, code: 'StorageFailed' }; }
   },
-  // Removed with the app/session integration; the current old app still calls these.
-  /** @param {string} name @param {unknown} box */
-  put: (name, box) => request(LIB, 'readwrite', s => s.put({ name, box, savedAt: Date.now() })),
-  /** @param {string} name */
-  del: name => request(LIB, 'readwrite', s => s.delete(name)),
 };
 
 export const backups = {

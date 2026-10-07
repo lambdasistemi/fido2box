@@ -23,7 +23,7 @@ information; the daily-use column describes its documented workflow.
 
 | System    | Daily use or recovery use                                                                                | Vault/service accounts                                                                                     | Storage and deployment                                                                                                        |
 | --------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| fido2box  | Recovery-first: title, address to open, secret to copy. [README][fido-readme]                            | No fido2box account; optional GitHub backup requires repository access. [README][fido-readme]              | Static site, no backend; encrypted browser storage, JSON downloads, optional explicit GitHub Push/Pull. [README][fido-readme] |
+| fido2box  | Recovery-first: named fields, optional addresses, per-value copy. [README][fido-readme]                  | No fido2box account; optional GitHub backup requires repository access. [README][fido-readme]              | Static site, no backend; encrypted browser storage, JSON downloads, optional explicit GitHub Push/Pull. [README][fido-readme] |
 | Bitwarden | Daily password management with browser saving and autofill. [Browser guide][bw-browser]                  | Account on a selected cloud region or self-hosted server. [Server regions][bw-server]                      | Hosted service or a deployed Bitwarden server. [Hosting][bw-hosting]                                                          |
 | 1Password | Daily password management with browser saving and filling. [Browser guide][op-browser]                   | A 1Password account provides access across devices. [Sync guide][op-sync]                                  | Service-synchronized vaults, with local access after synchronization. [Sync guide][op-sync]                                   |
 | KeePassXC | Desktop password management using an encrypted database. [Overview][kpx-home]                            | Local files need no vault-service account; optional cloud storage adds access requirements. [FAQ][kpx-faq] | Local KDBX file; optional synchronization through a chosen file-sync service. [FAQ][kpx-faq]                                  |
@@ -80,19 +80,21 @@ The static site and browser remain trusted while unlocking: the browser receives
 plaintext and data-key material, and compromised served code could misuse that
 access. Enrollment currently permits platform authenticators, so “hardware key
 plus PIN” describes the intended workflow rather than an enforced hardware-only
-guarantee. The unresolved findings in [issue #16][fido-issue] include stale
-state after Pull, ineffective key revocation, and unauthenticated vault
-structure and revision. See [security boundaries](security.md) and the [audit
-notes][fido-audit]; this comparison does not establish cryptographic assurance.
+guarantee. The remaining findings in [issue #16][fido-issue] include ineffective
+key revocation and unauthenticated vault structure and revision. The record
+implementation separately addresses stale unlocked state after Pull. See
+[security boundaries](security.md) and the [audit notes][fido-audit]; this
+comparison does not establish cryptographic assurance.
 
-## Current records and planned work
+## Recovery records
 
-The shipped item model remains **title, URL, and secret**. Expressive records
-with additional typed fields are planned specification work, not a capability
-available in the current app. The [README][fido-readme] describes the current
-Open/Copy workflow. Borrowing familiar password-manager field conventions does
-not establish an interoperability standard or support for another product's
-vault format.
+Records contain a title and ordered named fields, with independent text,
+multiline or URL kinds and hiding choices. URLs are optional; each value has
+Copy, and permitted URLs are links. Optional secret confirmation is transient.
+Legacy migration retains a verified encrypted original; older releases cannot
+safely edit the new format. See the [README][fido-readme] and
+[recovery guide](recovery.md). These conventions do not establish
+interoperability or support for another product's vault format.
 
 [fido-readme]: https://github.com/lambdasistemi/fido2box/blob/main/README.md
 [fido-audit]: https://github.com/lambdasistemi/fido2box/blob/main/AUDIT.md

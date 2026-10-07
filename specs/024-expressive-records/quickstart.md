@@ -1,14 +1,14 @@
 # Verification quickstart: Expressive recovery records
 
-This is a future implementation acceptance recipe, not proof that new records
-are already available. Use only synthetic data and localhost rehearsal keys.
+This is the acceptance recipe for the implementation in PR #33. Executed
+evidence is recorded in tasks.md. Use only synthetic data and localhost
+rehearsal keys.
 
-## Current planning artifacts
+## Design and evidence
 
 Read plan.md, then modules-model.md, data-model.md, functions-model.md, and
-contracts/. The requirements checklist records scenario traceability. Technical
-planning is followed by task generation and consistency analysis; do not begin
-behavior implementation directly from this page.
+contracts/. The requirements checklist records scenario traceability; tasks.md
+distinguishes executed implementation checks from review and release decisions.
 
 ## Reproducible commands
 
@@ -19,11 +19,11 @@ nix build .#site
 nix develop --quiet -c bash scripts/smoke-site.sh result
 ```
 
-The current baseline has 23 core unit checks, 2 tooling checks, and 110 browser
-checks. Counts must grow with coverage; never preserve these counts by dropping
-old cases. Every new/changed JS owner, including app orchestration, enters
-checkJs. Real-browser coverage uses the existing CDP harness and virtual PRF
-authenticator. That is not a real-hardware interoperability test.
+The suite includes core, record/codec, envelope, frozen legacy, clipboard and
+GitHub source checks, tooling guards, and 198 browser checks. Every new/changed
+JS owner, including app orchestration, enters checkJs. Real-browser coverage
+uses the existing CDP harness and virtual PRF authenticator. That is not a
+real-hardware interoperability test.
 
 ## Recovery acceptance
 

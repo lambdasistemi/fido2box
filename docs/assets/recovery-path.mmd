@@ -1,0 +1,11 @@
+%% Rendered with mermaid-cli 11.17.0 from the repository's pinned nixpkgs.
+%%{init: {"theme":"base","themeVariables":{"fontFamily":"sans-serif","fontSize":"16px","primaryColor":"#edf3f2","primaryTextColor":"#17252b","primaryBorderColor":"#086b60","lineColor":"#596b73"}}}%%
+flowchart TB
+  file[Encrypted backup file]
+  locked[Locked browser copy]
+  records[Records in memory]
+  use[Copy a value or follow a safe link]
+  file -->|Import| locked
+  locked -->|Verify with an enrolled key| records
+  records -->|Choose a field| use
+  records -->|Save encrypted| locked

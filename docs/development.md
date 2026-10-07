@@ -31,9 +31,9 @@ PRF authenticator and a fake GitHub API; test real hardware separately.
 
 Use `just format` and `just format-check` for Nix and repository
 configuration/docs. Existing compact JavaScript style is preserved; JSDoc type
-checks cover the core modules listed in `tsconfig.json`, not `app.js`. Workflow
-lint and shellcheck run through `just lint`. The app's dependency boundary
-remains checked too.
+checks cover the app and its modules listed in `tsconfig.json`. Workflow lint
+and shellcheck run through `just lint`. The app's dependency boundary remains
+checked too.
 
 Read the
 [contribution guide](https://github.com/lambdasistemi/fido2box/blob/main/CONTRIBUTING.md)
@@ -54,22 +54,22 @@ separate owners. New modules participate in the relevant type and test gates.
 Record changes require legacy fixtures and lossless round-trip tests; field UI
 changes require safe-link, copy/reveal, lock/reset, and accessibility coverage.
 The templates contain explicit constitution checks rather than optional test
-placeholders. This amendment does not implement expressive records or change the
-current three-field app behavior.
+placeholders.
 
 The expressive-record specification and technical plan live in
 [`specs/024-expressive-records/`](https://github.com/lambdasistemi/fido2box/tree/main/specs/024-expressive-records).
 The design keeps record/domain logic, encrypted formats, persistence, UI, and
 browser effects in separate owners. It requires migration backups and a shared
-save/session boundary before new fields can ship. These are planned contracts,
-not current app capabilities; task generation and verification still precede
-implementation. The stale-Pull finding in issue #16 remains a release
-dependency.
+save/session boundary shared by record, key and token writes. Pull and lock
+invalidate pending work; exact-source comparison inside the IndexedDB
+transaction refuses stale writes from another tab. The broader audit issue
+remains open.
 
 Contributors can exercise the developing storage/session boundary through
 `just browser`. Its synthetic legacy fixtures retain complete notes and token
 records; the tests use real IndexedDB for migration backups, source conflicts,
 failed writes and late asynchronous completions. Authentication in those
-controller cases is injected, while the existing app scenarios use Chromium's
-virtual authenticator. The new controller is not yet connected to the app, so
-these checks alone do not establish the user-visible stale-Pull fix.
+controller cases is injected, while app scenarios use Chromium's virtual
+authenticator. The app-level Pull regression failed against the old writer and
+passes through the new controller. These checks do not establish real-hardware
+interoperability or cryptographic security.

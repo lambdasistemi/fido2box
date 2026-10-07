@@ -18,7 +18,12 @@ async function main() {
     const base = 'http://127.0.0.1:' + server.address().port;
     for (const [route, expected] of [
       ['/', '<title>fido2box</title>'], ['/crypto.js', 'wrapDataKey'],
+      ['/records.js','finishDraft'], ['/record-codec.js','decodeRecord'],
+      ['/box-format.js','readSource'], ['/box-session.js','createBoxSessions'],
+      ['/record-session.js','createRecordSession'], ['/record-view.js','recordView'],
+      ['/record-editor.js','recordEditor'], ['/dom.js','element'], ['/clipboard.js','createClipboardController'],
       ['/docs/', 'fido2box'], ['/docs/development/', 'Development'],
+      ['/docs/assets/recovery-path.svg', '<svg'], ['/docs/assets/records.css', 'recovery-path.svg'],
     ]) {
       const response = await fetch(base + route);
       assert.equal(response.status, 200, route);

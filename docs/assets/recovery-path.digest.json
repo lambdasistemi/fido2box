@@ -1,0 +1,5 @@
+{
+  "renderer": "@mermaid-js/mermaid-cli 11.17.0 from the flake's pinned nixpkgs",
+  "sourceSha256": "c39b61d7a3d5909a3e037c801c760bd961f3a7ab1f9cd7802fef1a52f32112a1",
+  "renderSha256": "b45feb497cce29aae14d5bb9ab8052bf823079631c362470063ee77fa2673b83"
+}

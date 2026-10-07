@@ -56,9 +56,17 @@ async function main() {
   const run = async (expr) => { const r = await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }); if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception ? r.exceptionDetails.exception.description : r.exceptionDetails.text); return r.result.value; };
   const until = async (expr, ms = 8000) => { const t = Date.now(); while (Date.now() - t < ms) { if (await run(expr).catch(() => false)) return true; await sleep(120); } return false; };
   const q = (s) => `document.querySelector(${JSON.stringify(s)})`;
-  const click = (s) => run(`${q(s)}.click()`); const fill = (s, v) => run(`${q(s)}.value = ${JSON.stringify(v)}`);
+  const click = (s) => run(`${q(s)}.click()`); const fill = (s, v) => run(`(()=>{const el=${q(s)};el.value=${JSON.stringify(v)};el.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   const text = () => run('document.body.innerText'); const has = async (t) => (await text()).includes(t);
   const btn = (label) => run(`[...document.querySelectorAll('button,a.btn')].find((b) => b.textContent.trim() === ${JSON.stringify(label)}).click()`);
+  const addRecord = async (title,url,secret) => {
+    await click('#new-record'); await fill('#record-title',title);
+    await btn('Password or recovery key'); await fill('textarea[data-value]',secret);
+    await btn('Website');
+    // Field groups each contain one primary textarea.
+    await run(`(()=>{const inputs=document.querySelectorAll('textarea[data-value]');const el=inputs[inputs.length-1];el.value=${JSON.stringify(url)};el.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+    await click('#save-record'); await until(`!document.querySelector('#record-title')`);
+  };
   const open = async (hash = '') => {   // always a real reload, including its asynchronous first render
     await send('Page.navigate', { url: 'about:blank' }); await send('Page.navigate', { url: base + hash });
     if (!await until(`location.href === ${JSON.stringify(base + hash)} && document.readyState === 'complete' && !!document.querySelector('#app > *')`)) throw new Error('App did not render after navigation to ' + base + hash);
@@ -82,13 +90,14 @@ async function main() {
   const auth = (extra = {}) => send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', ctap2Version: 'ctap2_1', transport: 'usb', hasResidentKey: false, hasUserVerification: true, isUserVerified: true, hasPrf: true, automaticPresenceSimulation: true, ...extra } });
   try {
     await send('Page.enable'); await send('Runtime.enable'); await send('Page.bringToFront'); await send('Emulation.setFocusEmulationEnabled', { enabled: true });
-    await send('Page.addScriptToEvaluateOnNewDocument', { source: FAKE_GH + LIB_READER }); await send('WebAuthn.enable', { enableUI: false });
+    await send('Page.addScriptToEvaluateOnNewDocument', { source: FAKE_GH + LIB_READER + 'window.confirm = () => window.__confirmChoice !== false;' }); await send('WebAuthn.enable', { enableUI: false });
     await send('Browser.grantPermissions', { permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'], origin: base.replace(/\/$/, '') }).catch(() => {});
     const key1 = await auth();
     // ===== empty library, make a box =====
     await open();
     await require('./storage.browser.cjs')({ run, ok });
     await require('./sessions.browser.cjs')({ run, ok });
+    await require('./record-ui.browser.cjs')({ run, ok });
     ok(await has('No boxes yet'), 'a new browser has an empty library');
     ok(await auditVisible() && await run(`(() => { const notice = document.querySelector('#audit-notice'); return !document.querySelector('#app').contains(notice) && notice.getAttribute('aria-label') === 'Security notice' && !notice.matches('[role="alert"], [aria-live]') && !notice.querySelector('button'); })()`), 'a fresh page shows a persistent, non-dismissible security notice without a live alert');
     ok(await run(`(() => { const link = document.querySelector('#audit-notice a'); return !!link && link.textContent === 'Security limitations' && link.href === location.origin + '/docs/security/' && link.target === '_blank' && link.relList.contains('noopener') && link.relList.contains('noreferrer'); })()`), 'the named security link opens same-origin limitations separately without opener access or referrer');
@@ -221,12 +230,13 @@ async function main() {
     ok(await until(`location.hash === '#/box/paolo' && !!${q('#lockBtn')}`), 'creating a box with a key (real WebAuthn + PRF) opens it, unlocked');
     ok(await auditVisible(), 'an unlocked box still shows the security notice');
     const rec = JSON.parse(await run(`lib.get('paolo').then((r) => JSON.stringify(r.box))`));
-    ok(rec.v === 2 && rec.rev === 1 && rec.keys.length === 1 && rec.keys[0].name === 'hk-home' && rec.rpId === 'localhost', 'library record: v2, rev 1, key hk-home, rpId localhost');
+    ok(rec.v === 3 && rec.rev === 1 && rec.keys.length === 1 && rec.keys[0].name === 'hk-home' && rec.rpId === 'localhost', 'library record: v3, rev 1, key hk-home, rpId localhost');
     // ===== items =====
-    for (const [nm, u, s] of [['1Password', 'https://my.1password.com/signin', 'A3-SECRET-ONE'], ['Google', 'https://accounts.google.com', 'g-code-two']]) { await fill('#iName', nm); await fill('#iUrl', u); await fill('#iSecret', s); await click('#addItem'); await sleep(500); }
-    await fill('#iName', 'Bad'); await fill('#iUrl', 'javascript:alert(1)'); await fill('#iSecret', 'x'); await click('#addItem'); await sleep(400);
-    ok(await has('must start with https'), 'a javascript: address is refused');
-    ok((await text()).includes('1Password') && (await text()).includes('accounts.google.com'), 'items listed with their host');
+    for (const [nm, u, s] of [['1Password', 'https://my.1password.com/signin', 'A3-SECRET-ONE'], ['Google', 'https://accounts.google.com', 'g-code-two']]) { await addRecord(nm,u,s); }
+    await addRecord('Bad','javascript:alert(1)','x');
+    ok(await has('Invalid address') && !(await run(`!!document.querySelector('a[href^="javascript:"]')`)), 'a javascript address stays savable and copyable but cannot navigate');
+    await btn('Google');
+    ok((await text()).includes('1Password') && (await text()).includes('accounts.google.com'), 'record titles and the active record address are displayed');
     ok(!(await text()).includes('A3-SECRET-ONE') && !(await run('document.documentElement.outerHTML')).includes('A3-SECRET-ONE'), 'secrets are not in the page');
     ok(await labeledInputs(), 'item fields have associated labels');
     await send('Emulation.setDeviceMetricsOverride', { width: 320, height: 800, deviceScaleFactor: 1, mobile: true });
@@ -236,14 +246,15 @@ async function main() {
     await screenshot('desktop-items');
     const stored = await run(`lib.list().then((l) => JSON.stringify(l))`);
     ok(!/1Password|google|A3-SECRET|g-code/i.test(stored), 'what is stored in the library leaks no title, address or secret');
-    ok((await run(`${q('a.btn')}.href`)) === 'https://my.1password.com/signin', 'Open goes to the address');
-    ok(await run(`${q('a.btn')}.rel`).then((r) => r.includes('noopener')), 'Open is noopener');
-    await run(`document.querySelectorAll('button.copy')[1].click()`); await sleep(300);
+    await btn('1Password');
+    ok((await run(`${q('a.field-value')}.href`)) === 'https://my.1password.com/signin', 'the URL value itself links to the address');
+    ok(await run(`${q('a.field-value')}.rel`).then((r) => r.includes('noopener')), 'the URL value has noopener');
+    await btn('Google'); await click('button.copy'); await sleep(300);
     ok((await run(`navigator.clipboard.readText()`).catch((e) => 'ERR ' + e.message)) === 'g-code-two', 'Copy puts that item\'s secret on the real clipboard');
-    // delete needs a second click
-    await run(`[...document.querySelectorAll('button')].filter((b) => b.textContent === 'Delete')[0].click()`); await sleep(150);
-    ok((await text()).includes('1Password'), 'delete: the first click only asks');
-    await btn('Yes, delete'); await sleep(500);
+    // Deletion requires an explicit confirmation.
+    await btn('1Password'); await run('window.__confirmChoice=false'); await btn('Delete record'); await sleep(150);
+    ok((await text()).includes('1Password'), 'delete: rejecting confirmation preserves the record');
+    await run('window.__confirmChoice=true'); await btn('Delete record'); await sleep(500);
     ok(!(await text()).includes('1Password') && (await text()).includes('Google'), 'delete: confirming removes it');
     // ===== keys =====
     await click('#tab-keys'); await sleep(200);
@@ -273,7 +284,7 @@ async function main() {
     await send('WebAuthn.setAutomaticPresenceSimulation', { authenticatorId: key1.authenticatorId, enabled: false });
     await click('#tab-keys'); await sleep(200); await click('#detectBtn'); await sleep(400);
     await click('#tab-items'); await sleep(200);
-    await fill('#iName', 'While waiting'); await fill('#iUrl', 'https://example.com'); await fill('#iSecret', 'w'); await click('#addItem'); await sleep(600);
+    await addRecord('While waiting','https://example.com','w');
     ok(await has('While waiting'), 'while a key request is pending, other buttons still work');
     await click('#tab-keys'); await sleep(200); await click('#detectBtn'); await sleep(300);
     ok(await has('Still waiting') || await has('Still working'), 'pressing Detect again says it is still waiting instead of doing nothing');
@@ -332,7 +343,7 @@ async function main() {
     await open(); await click('#newBtn'); await fill('#newName', 'two'); await click('#newKeyManual'); await click('#createBox');
     await until(`location.hash === '#/box/two' && !!${q('#lockBtn')}`);
     ok(await run("lib.get('two').then(r => r.box.keys[0].name === 'Security key 1')"), 'an omitted nickname receives a readable automatic name');
-    await fill('#iName', 'Site'); await fill('#iUrl', 'https://example.org'); await fill('#iSecret', 's1'); await click('#addItem'); await sleep(400);
+    await addRecord('Site','https://example.org','s1');
     await click('#tab-sync'); await sleep(200);
     ok(await has('Connect to GitHub') && (await run(`${q('#openGh')}.href`)) === 'https://github.com/settings/personal-access-tokens/new', 'the Sync tab walks through connecting: the token step links to GitHub');
     await fill('#iToken', 'ghp_FAKE'); await click('#addToken'); await sleep(500);
@@ -365,7 +376,7 @@ async function main() {
     await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
     await screenshot('desktop-boxes');
     ok((await run(`[...document.querySelectorAll('a.chip')].map((a) => a.href).join(' ')`)).includes('https://github.com/paolino/fido-box/blob/main/boxes/two.json') && (await run(`${q('#ghLine a')}.href`)) === 'https://github.com/paolino/fido-box/tree/main/boxes', 'the Boxes list links each GitHub box to its file, and the repository line to the folder');
-    await run(`location.hash = '#/box/two'`); await sleep(300); await fill('#iName', 'Later'); await fill('#iUrl', 'https://example.net'); await fill('#iSecret', 's2'); await click('#addItem'); await sleep(500);
+    await run(`location.hash = '#/box/two'`); await sleep(300); await addRecord('Later','https://example.net','s2');
     await run(`location.hash = '#/'`); await sleep(300);
     ok(await has('ahead of GitHub'), 'a local change makes it "ahead of GitHub"');
     // someone saved a newer version on GitHub: Push is refused and nothing is written
@@ -376,6 +387,10 @@ async function main() {
     // Pull replaces the local copy
     await click('#pullBtn'); await sleep(300); await click('#pullBtn'); await sleep(600);
     ok((await run(`lib.get('two').then((r) => r.box.rev)`)) === 9, 'Pull brings the GitHub version in (asks first when the local one is newer)');
+    ok(await run(`!document.querySelector('#lockBtn')`), 'Pull immediately invalidates the old unlocked session');
+    await click('#tab-items'); await sleep(100);
+    ok(!(await has('Later')), 'Pull leaves no stale record plaintext in the Items view');
+    if (await run(`!!document.querySelector('#unlockBtn')`)) { await click('#unlockBtn'); await until(`!!document.querySelector('#lockBtn')`); }
     // a box that exists only on GitHub
     await seed('three'); await run(`location.hash = '#/'`); await sleep(300); await click('#refreshBtn'); await sleep(800);
     ok(await has('three') && await has('only on GitHub'), 'a box only on GitHub is listed as such');
@@ -397,6 +412,7 @@ async function main() {
     await btn('Delete from this browser'); await sleep(150); ok(!!(await run(`lib.get('imp')`)), 'delete from this browser asks first');
     await btn('Yes, delete from this browser'); await sleep(600);
     ok(!(await run(`lib.get('imp')`)) && !!g.files, 'confirming deletes only the local copy');
+    await require('./rich-records.browser.cjs')({run,ok,click,fill,btn,until,send,open,profile,sleep});
     // a key without PRF is reported as unusable for boxes
     await send('WebAuthn.removeVirtualAuthenticator', { authenticatorId: key3.authenticatorId }); const noPrf = await auth({ hasPrf: false });
     await open('#/keys'); await click('#testKey'); await until(`!!${q('#probeResult')}`);
@@ -412,7 +428,7 @@ async function main() {
     await open('#/'); await click('#newBtn'); await sleep(250); await click('#newKeyManual'); await click('#newKeyLabel'); await until(`${q('#newKey')}.value === 'hk-bag'`);
     ok((await run(`${q('#newKey')}.value`)) === 'hk-bag', 'the New box form can fill the key name from its label');
     // A credential present only in fetched GitHub metadata is recognizable too.
-    await run(`(async () => { const {enrolKey} = await import('./webauthn.js'); const {emptyVault,newDataKey} = await import('./crypto.js'); const box = await enrolKey(emptyVault(location.hostname), 'remote-spare', newDataKey()); window.__gh.files['boxes/remote-only.json'] = JSON.stringify(box); })()`);
+    await run(`(async () => { const {enrolKey} = await import('./webauthn.js'); const {newDataKey} = await import('./crypto.js'); const {emptyVault}=await import('./box-format.js'); const box={...emptyVault(location.hostname),keys:[await enrolKey('remote-spare',newDataKey())]}; window.__gh.files['boxes/remote-only.json'] = JSON.stringify(box); })()`);
     await run(`location.hash = '#/settings'`); await until(`!!${q('#tokIn')}`);
     await fill('#tokIn', 'ghp_FAKE'); await click('#useTok'); await until(`document.body.innerText.includes('Connected:')`);
     await run(`location.hash = '#/'`); await until(`!!${q('#newBtn')}`); await click('#newBtn');

@@ -25,6 +25,8 @@ theme:
     - content.code.copy
 plugins:
   - search
+extra_css:
+  - assets/records.css
 markdown_extensions:
   - admonition
   - tables

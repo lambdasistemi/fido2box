@@ -10,12 +10,13 @@
 - Completed: specification merged in #25; read-only format/UI research; modules
   model authored before data/functions; compatibility and UI contracts.
 - Current: solo delivery; approved plan merged in #29. See [tasks](tasks.md).
-- Next: test-first implementation; task review and abstract proofs completed.
+- Implemented: record codec, guarded storage/session owner, field editor and
+  clipboard controller, with behavioral RED/GREEN evidence in tasks.md.
+- Next: finish delivery checks and resolve the deferred review decision.
 - Feedback: no required URL; optional exact double entry and temporary reveal.
-- Release blocker: stale-Pull subset of
-  [#16](https://github.com/lambdasistemi/fido2box/issues/16). Task generation
-  must schedule its regression/fix before rich-record enablement. This plan does
-  not close the broader crypto audit.
+- The stale-Pull subset of
+  [#16](https://github.com/lambdasistemi/fido2box/issues/16) has an actual-app
+  regression and fix; the broader crypto audit remains open.
 
 ## Summary
 

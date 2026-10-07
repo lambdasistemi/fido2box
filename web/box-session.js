@@ -16,6 +16,11 @@ import { newDataKey, encryptText, decryptText } from './crypto.js';
 /** @typedef {{generation:number,abort:AbortController,session:PrivateSession|null,queue:Promise<unknown>}} Slot */
 /** @param {string} code @returns {{ok:false,code:string}} */
 const failure = code => ({ok:false,code});
+/** @param {unknown} error */
+function authCode(error) {
+  const name=error instanceof Error?error.name:'';
+  return ['NotAllowedError','AbortError','InvalidStateError','NoPrf','NoUV','NotSupportedError','SecurityError'].includes(name)?name:'AuthFailed';
+}
 
 /** @param {BoxSessionPorts} ports */
 export function createBoxSessions(ports) {
@@ -75,21 +80,21 @@ export function createBoxSessions(ports) {
       if (!current(name,generation)) return failure('Stale');
       if (latest?.sourceText !== stored.sourceText) return failure('Conflict');
       return {ok:true,value:publish(name,generation,source.value,box,data,payloads,writable,code)};
-    } catch { return failure(current(name,generation) ? 'AuthFailed' : 'Stale'); }
+    } catch (error) { return failure(current(name,generation) ? authCode(error) : 'Stale'); }
   }
-  /** @param {string} name @param {string} keyName @param {string} rpId @returns {Promise<Result<SessionView>>} */
-  async function create(name,keyName,rpId) {
+  /** @param {string} name @param {string} keyName @param {string} rpId @param {(data:BufferSource)=>Promise<import('./box-format.js').KeyEntry>} [enrol] @returns {Promise<Result<SessionView>>} */
+  async function create(name,keyName,rpId,enrol) {
     lock(name); const state = slot(name), generation = state.generation, signal = state.abort.signal;
     try {
-      const data = newDataKey(), key = await ports.enrol(keyName,data);
+      const data = newDataKey(), key = await (enrol ? enrol(data) : ports.enrol(keyName,data));
       if (!current(name,generation)) return failure('Stale');
-      const box = {...emptyVault(rpId),keys:[key]};
+      const box = {...emptyVault(rpId),rev:1,keys:[key]};
       if (!inspectBox(box).writable) return failure('Invalid');
       const source = sourceFromBox(box), saved = await ports.storage.compareAndSwap(name,null,source,signal);
       if (!saved.ok) return saved;
       if (!current(name,generation)) return failure('Stale');
       return {ok:true,value:publish(name,generation,source,box,data,[],true,'')};
-    } catch { return failure(current(name,generation) ? 'AuthFailed' : 'Stale'); }
+    } catch (error) { return failure(current(name,generation) ? authCode(error) : 'Stale'); }
   }
   /** @param {string} name @param {SessionToken} token @param {boolean} approved @returns {Promise<Result<MigrationApproval>>} */
   async function prepareMigration(name,token,approved) {
@@ -170,7 +175,7 @@ export function createBoxSessions(ports) {
       if (!saved.ok) { if (saved.code === 'Conflict' && bound(name,token)) lock(name); return saved; }
       if (!bound(name,token)) return failure('Stale');
       return {ok:true,value:publish(name,token.generation,source,candidate.value,session.data,payloads,true,'')};
-    } catch { return failure(bound(name,token) ? 'StorageFailed' : 'Stale'); }
+    } catch (error) { return failure(bound(name,token) ? mutation.kind==='add-key'?authCode(error):'StorageFailed' : 'Stale'); }
   }
   /** @param {string} name @param {string|null} expected @param {SourceDocument} next @returns {Promise<Result<StoredBox>>} */
   async function replace(name,expected,next) {
@@ -187,5 +192,7 @@ export function createBoxSessions(ports) {
     try { const saved = await ports.storage.compareAndSwap(name,expected,null,slot(name).abort.signal); return saved.ok ? {ok:true,value:undefined} : saved; }
     catch { return failure('StorageFailed'); }
   }
-  return {create,unlock,get,prepareMigration,mutate,replace,remove,lock};
+  /** Capture a transport operation's generation before awaiting external IO. @param {string} name */
+  const generation = name => slot(name).generation;
+  return {create,unlock,get,prepareMigration,mutate,replace,remove,lock,generation};
 }

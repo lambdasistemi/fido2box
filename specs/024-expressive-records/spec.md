@@ -9,7 +9,8 @@
 
 **Created**: 2026-10-07
 
-**Status**: Specified; implementation not started
+**Status**: Implemented in PR #33; final checks and deferred review decision
+tracked in tasks.md
 
 **Input**: Named user-added fields, hidden or visible; URLs are links instead of
 an Open button; each value has a copy button. Keep code in small, focused
@@ -301,9 +302,9 @@ hardware-only enforcement are not solved or newly claimed by this feature.
   editor cannot reconstruct lost keys, files, or origin identity.
 - Zero-field titled records and empty named fields are allowed. Custom-field
   hiding defaults to on; the suggestions above provide visible conveniences.
-- Schema, module interfaces, migration mechanics, and tests are planning work,
-  not specified implementations. The next phase produces the modules model
-  before data and function models, following constitution 1.1.0.
+- Schema, module interfaces, migration mechanics, and tests were modeled before
+  implementation, following constitution 1.1.0. Implementation evidence is
+  recorded in tasks.md; the model alone does not establish browser behavior.
 - Untouched imported values retain their original line endings even after reveal
   or unrelated edits. Deliberately editing a value replaces it with the browser
   control's input; editing CR/CRLF content shows a warning about LF
