@@ -12,7 +12,8 @@
 - Current: solo delivery; approved plan merged in #29. See [tasks](tasks.md).
 - Implemented: record codec, guarded storage/session owner, field editor and
   clipboard controller, with behavioral RED/GREEN evidence in tasks.md.
-- Next: finish delivery checks and resolve the deferred review decision.
+- Delivery checks pass; the operator explicitly waived independent review and
+  authorized merge on 2026-10-07. Final-head CI remains a merge-guard condition.
 - Feedback: no required URL; optional exact double entry and temporary reveal.
 - The stale-Pull subset of
   [#16](https://github.com/lambdasistemi/fido2box/issues/16) has an actual-app

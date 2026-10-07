@@ -76,8 +76,9 @@ optionally confirm typed secrets, copy exact values and link safe URLs.
 - [x] Update README, in-app guidance, recovery/security/development docs and
       comparison current/planned wording to match actual behavior.
 - [x] Run full local CI, sandboxed flake checks and built-site smoke.
-- [ ] Confirm hosted CI on the final head and resolve the deferred independent
-      review decision before feature merge; current receipts are in PR #33.
+- [x] Confirm hosted CI on the implementation head and resolve the deferred
+      independent review decision; PR #33 records receipts and the explicit
+      waiver. The merge guard must verify the final head before merge.
 
 ## Ordering and commit discipline
 
@@ -96,7 +97,9 @@ app and no compatibility promise is inferred from green unit tests.
 
 All specified actions, formats, storage/session methods and UI callbacks have an
 owner and task. Confirmation is transient draft state, never encoded. No
-unresolved model conflict was found. Independent review remains deferred.
+unresolved model conflict was found. On 2026-10-07 the operator explicitly
+waived independent review and authorized merge. This is not independent review
+or security audit evidence.
 
 The theorems in `lean/Records/Proofs.lean` describe the abstract transition
 contract: current predecessor/generation, failed/unsupported writes, lock and
@@ -151,3 +154,9 @@ visually checked at 1200px and 320px in light/dark; the mechanical layout check
 passes and detects the deliberately oversized negative control. There is no
 speech-reader surface in this project. Hosted CI and review are separate from
 these local receipts; the feature is not merged or released by these checks.
+
+All five hosted jobs passed at `c3801e3` in
+[run 37620832560](https://github.com/lambdasistemi/fido2box/actions/runs/37620832560).
+The operator then resolved the deferred decision: "Waive independent review and
+merge." The final documentation-only receipt update still requires green
+exact-head CI through the merge guard. The broader audit #16 remains open.

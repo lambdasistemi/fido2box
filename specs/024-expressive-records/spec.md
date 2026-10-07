@@ -9,8 +9,8 @@
 
 **Created**: 2026-10-07
 
-**Status**: Implemented in PR #33; final checks and deferred review decision
-tracked in tasks.md
+**Status**: Implemented and verified in PR #33; operator waived independent
+review and authorized merge. Evidence and merge conditions are in tasks.md.
 
 **Input**: Named user-added fields, hidden or visible; URLs are links instead of
 an Open button; each value has a copy button. Keep code in small, focused
