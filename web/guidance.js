@@ -138,6 +138,11 @@ export function helpButton(id) {
 export function documentationView() {
   const view = textElement('div', '', 'documentation');
   view.append(textElement('h1', 'Documentation'), textElement('p', 'A practical guide to your boxes, security keys, and backups.', 'muted'));
+  const handbook = textElement('a', 'Project documentation: recovery, security, and development →');
+  handbook.setAttribute('href', '/docs/');
+  const handbookNote = textElement('p', '');
+  handbookNote.append(handbook);
+  view.append(handbookNote);
   const contents = textElement('nav', '', 'docs-contents card');
   contents.setAttribute('aria-label', 'Documentation topics');
   TOPICS.forEach((topic) => {

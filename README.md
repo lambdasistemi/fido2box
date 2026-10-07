@@ -45,7 +45,8 @@ and the keys that open it.
   `?repo=` also works) and an optional GitHub token for this session.
 
 - **Documentation:** an in-app guide to boxes, items, keys, GitHub backups,
-  tokens, and recovery. Topic links can be bookmarked or shared.
+  tokens, and recovery. Topic links can be bookmarked or shared. The guide and
+  app footer also link to the published project documentation at `/docs/`.
 
 Question-mark buttons open contextual help without discarding the form you are
 filling in. Close the popup with **Close**, **Escape**, or a click outside it;
