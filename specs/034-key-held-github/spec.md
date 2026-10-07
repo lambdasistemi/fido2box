@@ -25,7 +25,11 @@ requires renewal through GitHub. No box is a prerequisite of setup or recovery.
 
 ## Recovery story and acceptance
 
-1. An empty library offers **Connect with security key** and **Set up key**.
+1. An empty library has one primary **Use security key** action. First-time
+   setup is available through a secondary **First time with this key?**
+   disclosure. A successful read connects directly. An unanswered request offers
+   retry and explicit setup without claiming the key is empty or automatically
+   writing to it. A known profile with rejected access promotes renewal.
 2. Setup accepts a repository and masked token, validates GitHub access, writes
    an encrypted access record to supported key storage and verifies it by
    reading it back. It never reports success from enrollment alone.

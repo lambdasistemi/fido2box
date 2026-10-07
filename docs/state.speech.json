@@ -43,7 +43,11 @@
       "pause": 500
     },
     {
-      "text": "This machine shows the common connection path in the open page. The explorer also covers renewal, manual tokens, and all the other action groups. Each edge can have effects elsewhere: use the explorer for the complete transition. In particular, successful Save access on key writes hardware storage; Connect reads it. Neither action imports or unlocks a box.",
+      "text": "This machine shows the common connection path in the open page. The explorer also covers renewal, manual tokens, and all the other action groups. Each edge can have effects elsewhere: use the explorer for the complete transition. In particular, successful Save access on key writes hardware storage; Use security key reads it. Neither action imports or unlocks a box.",
+      "pause": 400
+    },
+    {
+      "text": "Start with Use security key. A saved profile connects directly. First-time setup is available under First time with this key?. If nothing is returned, the page offers retry and explains setup without declaring the key empty. Cancellation, timeout and no matching credential cannot reliably be distinguished under the browser's privacy rules. Setup remains an explicit choice, never an automatic response to a failed read.",
       "pause": 400
     },
     {
@@ -107,6 +111,6 @@
   ],
   "_source": {
     "file": "state.md",
-    "sha256": "aaf563350c30ff16b7f35c23549beacb5888312ec07c1d11d744e28adaafaf05"
+    "sha256": "b7ae0cc7686e0ca2f9b9df94c1a9a46f03681329b0a164e77694810338935ad1"
   }
 }

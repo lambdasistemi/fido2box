@@ -4,7 +4,7 @@ module.exports=async({run,send,ok,base,open,click,fill,btn,until,auth,addRecord,
   const key=await auth({hasResidentKey:true,hasLargeBlob:true});
   const wipe=async()=>{await send('Page.navigate',{url:'about:blank'});await until("location.href==='about:blank'");await send('Storage.clearDataForOrigin',{origin:base.slice(0,-1),storageTypes:'all'});};
   await wipe();
-  await open();await require('./key-access-prompts.browser.cjs')({run,ok});await click('#setupKey');
+  await open();await require('./key-access-prompts.browser.cjs')({run,ok});await click('#keySetupHelp summary');await click('#setupKey');
   ok(await run("document.querySelector('#keyToken').type==='password' && !!document.querySelector('label[for=keyToken]')"),'setup is masked and labeled before any box exists');
   await fill('#keyToken','synthetic-discard');await click('#cancelKeySetup');
   ok(await run("!document.querySelector('#keyToken') && document.activeElement.id==='setupKey' && !document.body.innerHTML.includes('synthetic-discard')"),'canceling setup drops the token form and restores focus');
@@ -71,6 +71,6 @@ module.exports=async({run,send,ok,base,open,click,fill,btn,until,auth,addRecord,
   await send('WebAuthn.removeVirtualAuthenticator',{authenticatorId:key.authenticatorId});
   await auth({hasResidentKey:true,hasLargeBlob:false});await open();
   await run("{const create=navigator.credentials.create.bind(navigator.credentials);navigator.credentials.create=options=>{options.publicKey.timeout=1000;return create(options);};}");
-  await click('#setupKey');await fill('#keyRepo','owner/recovery');await fill('#keyToken','ghp_FAKE');await click('#saveKeyAccess');
+  await click('#keySetupHelp summary');await click('#setupKey');await fill('#keyRepo','owner/recovery');await fill('#keyToken','ghp_FAKE');await click('#saveKeyAccess');
   ok(await until("document.querySelector('#keyAccessStatus').textContent.includes('support') && !document.querySelector('#keyAccessStatus').textContent.includes('Saved on key')"),'unsupported key storage is refused without claiming setup succeeded');
 };

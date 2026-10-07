@@ -3,7 +3,7 @@ stateDiagram-v2
     state "Disconnected" as Off
     state "Verifying access" as Busy
     state "Connected" as On
-    Off --> Busy: Connect / Set up
+    Off --> Busy: Use key / Setup
     Busy --> On: Verified
     Busy --> Off: Cancel / Fail
     On --> Off: Disconnect

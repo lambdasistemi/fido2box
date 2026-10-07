@@ -7,15 +7,16 @@ recovering it from an encrypted file and a spare enrolled key.
    security key. Keep a separate backup key and enroll it while the box is open.
 2. Add the recovery items you need. Download the encrypted JSON file and keep a
    copy outside this browser. The key alone cannot recreate the box file.
-3. Choose **Set up key** on Boxes to store GitHub access encrypted on your key.
-   Enter the repository and a fine-grained token limited to that repository with
-   Contents read/write. Follow each PIN/touch prompt until the app confirms it
-   read the saved access back. Push your boxes from Sync; local changes are not
+3. On Boxes, open **First time with this key?**, then choose **Set up GitHub
+   access on this key** to store GitHub access encrypted on your key. Enter the
+   repository and a fine-grained token limited to that repository with Contents
+   read/write. Follow each PIN/touch prompt until the app confirms it read the
+   saved access back. Push your boxes from Sync; local changes are not
    automatically backed up.
-4. Test recovery in another browser: choose **Connect with security key**,
-   select the GitHub access credential, then Pull a listed box from Sync. Unlock
-   with an enrolled key and verify the required items are present. You can also
-   import a downloaded backup without GitHub access.
+4. Test recovery in another browser: choose **Use security key**, select the
+   GitHub access credential, then Pull a listed box from Sync. Unlock with an
+   enrolled key and verify the required items are present. You can also import a
+   downloaded backup without GitHub access.
 
 <!-- diagram: key-access-recovery -->
 
@@ -24,12 +25,18 @@ requires opening it. The key needs discoverable credentials, PRF and largeBlob
 support, and the browser must expose all three. A failed or unsupported setup is
 reported without claiming that recovery is ready. Token expiry or revocation
 still requires a new token from GitHub: connect with the key, then choose
-**Renew access**. A cancelled request cannot determine whether a key is empty.
+**Renew access**. The app promotes renewal when it has read a profile whose
+token GitHub refuses. If no access is returned, it offers **Try key again** and
+explains the optional setup path. It never automatically creates a profile after
+a failed or cancelled read. Browser privacy rules do not reliably distinguish
+cancellation, timeout and no matching credential; an unanswered request cannot
+establish that a key is empty. See the
+[WebAuthn privacy rules](https://www.w3.org/TR/webauthn-3/#sctn-privacy-considerations-client).
 
 Setup can ask for your PIN several times: creation, encryption-key derivation
 (when it cannot be combined with creation), writing access and verifying its
 readback are separate key operations. The app announces each stage. A normal
-**Connect with security key** uses one key operation; the browser and key
+**Use security key** connection uses one key operation; the browser and key
 control the actual PIN/touch prompts. No PIN is stored by the app.
 
 Setup creates a dedicated GitHub access credential. Renewal updates the

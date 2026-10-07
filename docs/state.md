@@ -55,8 +55,16 @@ record.
 This machine shows the common connection path in the open page. The explorer
 also covers renewal, manual tokens, and all the other action groups. Each edge
 can have effects elsewhere: use the explorer for the complete transition. In
-particular, successful **Save access on key** writes hardware storage;
-**Connect** reads it. Neither action imports or unlocks a box.
+particular, successful **Save access on key** writes hardware storage; **Use
+security key** reads it. Neither action imports or unlocks a box.
+
+Start with **Use security key**. A saved profile connects directly. First-time
+setup is available under **First time with this key?**. If nothing is returned,
+the page offers retry and explains setup without declaring the key empty.
+Cancellation, timeout and no matching credential cannot reliably be
+distinguished under the
+[browser's privacy rules](https://www.w3.org/TR/webauthn-3/#sctn-privacy-considerations-client).
+Setup remains an explicit choice, never an automatic response to a failed read.
 
 <!-- diagram: state-github -->
 

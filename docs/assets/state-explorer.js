@@ -56,7 +56,7 @@
     {
       id: "connect",
       group: "GitHub access",
-      title: "Connect with security key",
+      title: "Use security key / Try key again",
       requires:
         "The key already has a GitHub access profile for this website. Select that credential and approve its request.",
       effects: {
@@ -66,7 +66,7 @@
         ],
       },
       failure:
-        "Cancellation, an expired token, or unreadable profile leaves the page disconnected. A profile reference may remain available for renewal after a token refusal. No files are imported and no boxes are unlocked.",
+        "An unanswered request cannot distinguish cancellation, timeout and no matching credential. Offer retry and optional explicit setup; never automatically create a profile. A readable profile with a refused token offers renewal. No files are imported and no boxes are unlocked.",
     },
     {
       id: "renew",
