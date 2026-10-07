@@ -57,7 +57,7 @@ Legacy recognition:
 - Missing title maps to empty; missing, empty, or whitespace-only legacy titles
   set legacyUntitled true. URL is omitted when absent, otherwise becomes a
   visible URL field (even when empty). Secret becomes a hidden text field named
-  Secret.
+  Secret. Converted fields are ordered Secret, then Website when present.
 - A v2 title github-token uses ServiceRecord with absent URL mapped to empty;
   its historical reserved meaning cannot be safely inferred differently.
 - Explicit title editing clears legacyUntitled and requires a nonblank title.

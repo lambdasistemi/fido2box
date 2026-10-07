@@ -130,6 +130,96 @@ async function recordsTests() {
     const large = record(Array.from({ length: 20 }, (_, i) => field(String(i), 'x'.repeat(10000))));
     assert.deepEqual(finish(R.beginDraft(large)), large);
   });
+  const C = await import('../web/record-codec.js');
+  const ids = ['legacy-record', 'legacy-secret', 'legacy-url'];
+  const decode = (text, version = 3, supplied = version === 3 ? [] : ids) => C.decodeRecord(text, version, supplied);
+  const payload = result => { assert.equal(result.status, 'ok'); return result.payload; };
+  const encoded = value => { const result = C.encodeRecord(value); assert.equal(result.ok, true); return result.value; };
+  check('v1 preserves the whole note, including text around a recognizable recovery key', () => {
+    const note = ' Before\r\nA3-ABCDEF-ABCDE-ABCDE-ABCDE-ABCDE-ABCDE\rAfter\n ';
+    const value = payload(decode(note, 1));
+    assert.deepEqual(value, { ...record([{ id: ids[1], name: 'Notes', kind: 'multiline', hidden: true, value: note }]), id: ids[0], title: 'Secret' });
+  });
+  check('v1 JSON-looking and empty notes are never interpreted as triples', () => {
+    for (const note of ['', '{"title":"github-token","secret":"token"}', 'null', '[]']) {
+      const value = payload(decode(note, 1));
+      assert.equal(value.type, 'recovery');
+      assert.equal(value.fields[0].value, note);
+    }
+  });
+  check('v2 triples retain title, explicit empty URL and exact secret', () => {
+    const old = { title: ' Legacy ', url: '', secret: ' 000\r\n😀 ' };
+    const value = payload(decode(JSON.stringify(old), 2));
+    assert.equal(value.id, ids[0]);
+    assert.equal(value.title, old.title);
+    assert.deepEqual(value.fields, [
+      { id: ids[1], name: 'Secret', kind: 'text', hidden: true, value: old.secret },
+      { id: ids[2], name: 'Website', kind: 'url', hidden: false, value: '' },
+    ]);
+    assert.equal(Object.hasOwn(value, 'legacyUntitled'), false);
+  });
+  check('v2 missing URL makes no field and blank titles get exact legacy provenance', () => {
+    for (const title of [undefined, '', ' \r\n']) {
+      const value = payload(decode(JSON.stringify({ title, secret: '' }), 2));
+      assert.equal(value.title, title ?? '');
+      assert.equal(value.legacyUntitled, true);
+      assert.equal(value.fields.length, 1);
+      assert.equal(value.fields[0].value, '');
+      assert.deepEqual(payload(decode(encoded(value))), value);
+    }
+  });
+  check('v2 refuses malformed triples without falling back to a note', () => {
+    for (const text of ['not json', 'null', '[]', '42', '"secret"', '{}', '{"secret":1}', '{"secret":"private-marker","url":null}', '{"secret":"private-marker","title":false}']) {
+      const result = decode(text, 2);
+      assert.equal(result.status, 'invalid');
+      assert.equal(JSON.stringify(result).includes('private-marker'), false);
+    }
+  });
+  check('v2 unknown members refuse conversion without discarding them', () => {
+    assert.equal(decode('{"secret":"value","future":true}', 2).status, 'unsupported');
+  });
+  check('legacy reserved-title tokens retain URL and never become recovery records', () => {
+    for (const url of [undefined, '', ' https://github.com/ ']) {
+      const value = payload(decode(JSON.stringify({ title: 'github-token', url, secret: ' token\r\n ' }), 2));
+      assert.deepEqual(value, { format: 'fido2box-record', version: 1, type: 'github-token', id: ids[0], title: 'github-token', url: url ?? '', secret: ' token\r\n ' });
+      assert.deepEqual(payload(decode(encoded(value))), value);
+    }
+  });
+  check('current records preserve every field and persisted identity through codec round trips', () => {
+    for (let i = 0; i < 128; i++) {
+      const value = record(Array.from({ length: i % 21 }, (_, j) => ({ ...field('f' + j, ' 000\r\n😀\r\t '.repeat(1 + i % 9)), name: 'duplicate', kind: ['text', 'multiline', 'url'][j % 3], hidden: j % 2 === 0 })));
+      assert.deepEqual(payload(decode(encoded(value))), value);
+    }
+  });
+  check('current unknown discriminators and members refuse both decoding and encoding', () => {
+    for (const value of [{ ...record(), format: 'future' }, { ...record(), version: 2 }, { ...record(), type: 'other' }, { ...record(), extra: true }, record([{ ...field('one'), future: true }]), record([{ ...field('one'), kind: 'otp' }])]) {
+      assert.equal(decode(JSON.stringify(value)).status, 'unsupported');
+      assert.deepEqual(C.encodeRecord(value), { ok: false, code: 'Unsupported' });
+    }
+  });
+  check('malformed current payloads refuse encoding and decoding with non-secret errors', () => {
+    const token = { format: 'fido2box-record', version: 1, type: 'github-token', id: 'token', title: 'github-token', url: '', secret: 'private-marker' };
+    for (const value of [null, [], {}, { ...record(), title: '' }, record([field('same'), field('same')]), record([{ ...field('one'), value: 7 }]), { ...token, secret: null }, { ...token, title: 'other' }, { ...token, id: '' }, { ...token, url: null }]) {
+      const result = decode(JSON.stringify(value));
+      assert.equal(result.status, 'invalid');
+      assert.equal(JSON.stringify(result).includes('private-marker'), false);
+      assert.deepEqual(C.encodeRecord(value), { ok: false, code: 'Invalid' });
+    }
+    assert.equal(decode('{bad json').status, 'invalid');
+    assert.equal(decode(JSON.stringify({ ...token, fields: [] })).status, 'unsupported');
+  });
+  check('legacy conversion requires supplied unique IDs and current payloads never invent them', () => {
+    for (const supplied of [[], ['a'], ['a', 'b', 'b'], ['a', '', 'c'], ['a', 'b', 'c', 'd']]) assert.equal(decode('note', 1, supplied).status, 'invalid');
+    assert.equal(decode(JSON.stringify(record()), 3, ids).status, 'invalid');
+    assert.equal(decode(JSON.stringify({ ...record(), id: undefined })).status, 'invalid');
+    assert.equal(decode('note', 4, []).status, 'unsupported');
+  });
+  check('encoding a confirmed draft contains only the primary value, not editor state', () => {
+    const draft = confirm(R.beginDraft(record([field('one', 'a\r\nb')])), 'one', 'a\r\nb');
+    const value = payload(decode(encoded(finish(draft))));
+    assert.deepEqual(value, record([field('one', 'a\r\nb')]));
+    assert.deepEqual(C.encodeRecord(draft), { ok: false, code: 'Unsupported' });
+  });
   assert.equal(failures, 0, `${failures}/${count} record-model checks failed`);
   console.log(`${count} record-model checks passed`);
 }

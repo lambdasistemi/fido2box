@@ -26,10 +26,10 @@ no URL is required and only the primary values enter the serialized record.
       modeled record/draft/suggestion/validation functions in `web/records.js`.
       Cover blank/duplicate names, stable IDs, undo, exact strings, reserved
       titles, legacy title provenance, optional URL and optional double entry.
-- [ ] Write failing codec cases in `test/records.test.cjs`; implement
+- [x] Write failing codec cases in `test/records.test.cjs`; implement
       `web/record-codec.js`, including full v1 notes, strict v2 triples,
       discriminated v3 payloads, service tokens and unknown-data refusal.
-- [ ] Include these owners in `tsconfig.json` and invoke their tests through
+- [x] Include these owners in `tsconfig.json` and invoke their tests through
       `test/box.test.js`, preserving npm/Just/Nix runner equivalence.
 
 ## Recover old and new boxes safely
@@ -110,3 +110,9 @@ public functions and failed, then passed with the implementation, including 256
 generated records. The earlier missing-module run was not behavioral evidence.
 `nix develop --quiet -c just typecheck unit` passed 23 core, 18 record and two
 tooling checks. This does not establish codec, storage or UI behavior.
+
+Codec evidence: 12 additional behavioral checks executed the unimplemented codec
+and failed, then all 30 record/codec checks passed, including 128 generated
+codec round trips. Typecheck and the existing core/tooling suites passed too.
+Neither pure component is wired into the app writer yet; storage, migration and
+browser acceptance remain unchecked above.
