@@ -5,6 +5,14 @@ acceptance criteria before implementation and ship documentation in the same
 change. Read `.specify/memory/constitution.md`; global Spec Kit skills operate
 on the repository's `.specify/` templates and scripts.
 
+The constitution is the first gate: specify WHAT and WHY, clarify open
+decisions, then plan HOW. Plans define changed module ownership and dependency
+direction before data and function contracts. Keep feature logic in small,
+focused modules; `app.js` composes them. Tasks map each behavior requirement to
+automated proof. Documentation-only changes validate consistency and builds.
+Record-format changes must prove legacy recovery and lossless round trips, and
+must never treat UI masking as an encryption boundary.
+
 Run `nix develop --quiet -c just ci` and `nix flake check --no-eval-cache`
 before pushing. Run `just format` for repository configuration/documentation. A
 missing Chromium installation must fail browser tests. Do not introduce runtime

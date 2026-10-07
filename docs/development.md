@@ -31,11 +31,28 @@ PRF authenticator and a fake GitHub API; test real hardware separately.
 
 Use `just format` and `just format-check` for Nix and repository
 configuration/docs. Existing compact JavaScript style is preserved; JSDoc type
-checks cover the six core modules listed in `tsconfig.json`, not `app.js`.
-Workflow lint and shellcheck run through `just lint`. The app's dependency
-boundary remains checked too.
+checks cover the core modules listed in `tsconfig.json`, not `app.js`. Workflow
+lint and shellcheck run through `just lint`. The app's dependency boundary
+remains checked too.
 
 Read the
 [contribution guide](https://github.com/lambdasistemi/fido2box/blob/main/CONTRIBUTING.md)
 and project constitution before changing behavior. Specifications for repository
 setup live in `specs/017-repository-quality/`.
+
+## Spec-driven changes
+
+Constitution 1.1.0 is the governing baseline for new feature work. Write the
+user-visible specification and resolve unclear requirements before designing
+implementation. During planning, write `modules-model.md` first, then
+`data-model.md` and `functions-model.md`, covering only changed boundaries.
+Generate acceptance-linked tasks only after these contracts agree.
+
+Keep each module focused: pure record/validation logic must not import DOM,
+storage, clipboard, or networking. UI composition and browser effects have
+separate owners. New modules participate in the relevant type and test gates.
+Record changes require legacy fixtures and lossless round-trip tests; field UI
+changes require safe-link, copy/reveal, lock/reset, and accessibility coverage.
+The templates contain explicit constitution checks rather than optional test
+placeholders. This amendment does not implement expressive records or change the
+current three-field app behavior.
