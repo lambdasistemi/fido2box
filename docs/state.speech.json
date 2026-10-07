@@ -1,0 +1,112 @@
+{
+  "what-changes-when-i-act": [
+    {
+      "text": "What changes when I act?.",
+      "pause": 500
+    },
+    {
+      "text": "You want to know what your key remembers, what this browser remembers, and what survives after you leave. This page maps the current preview's actions to those places. Start with Disconnect, Lock, and Clear site data in the explorer: they have very different effects.",
+      "pause": 400
+    },
+    {
+      "text": "A box is a file, not a storage location. Copies of that file can be in this browser, on GitHub, or in your Downloads folder. Its records are encrypted. Its key nicknames, credential identifiers, and revision are public metadata. It also contains an encrypted copy of its data key for each enrolled credential.",
+      "pause": 400
+    }
+  ],
+  "follow-one-action": [
+    {
+      "text": "Follow one action.",
+      "pause": 500
+    },
+    {
+      "text": "Choose an action to see its before-and-after state in every location. This is an explanation: selecting an action here does not operate your key, connect to GitHub, read your boxes, or clear anything. Actions with the same storage effects are grouped. The result assumes success; the failure note explains exceptions.",
+      "pause": 400
+    }
+  ],
+  "where-the-state-lives": [
+    {
+      "text": "Where the state lives.",
+      "pause": 500
+    },
+    {
+      "text": "The box's data key encrypts its records; it is not your physical security key. The app stores local files and retained backups in two separate browser databases. Saving a record changes the local box. Only Push updates GitHub. A download never updates itself when you edit the box later.",
+      "pause": 400
+    },
+    {
+      "text": "GitHub setup stores the token on the key, encrypted with a secret derived through that credential. Connecting reads it into page memory so requests can use it. It is not saved to browser preferences. Older boxes may still contain an encrypted legacy GitHub token; unlocking one can supply access until you explicitly choose another access method. New key setup does not remove that old record.",
+      "pause": 400
+    }
+  ],
+  "github-connection-state": [
+    {
+      "text": "GitHub connection state.",
+      "pause": 500
+    },
+    {
+      "text": "This machine shows the common connection path in the open page. The explorer also covers renewal, manual tokens, and all the other action groups. Each edge can have effects elsewhere: use the explorer for the complete transition. In particular, successful Save access on key writes hardware storage; Connect reads it. Neither action imports or unlocks a box.",
+      "pause": 400
+    },
+    {
+      "text": "Starting an access request clears the previous live token and remote cache. Verification must finish before the new connection is published. Cancel or failure leaves the page disconnected, but a hardware write already accepted can remain. Disconnect clears access and the remote cache; it leaves already-unlocked boxes open.",
+      "pause": 400
+    }
+  ],
+  "one-box-in-this-browser": [
+    {
+      "text": "One box in this browser.",
+      "pause": 500
+    },
+    {
+      "text": "This diagram shows importing and opening one box. The explorer also covers Create, edits, Save, and deletion. Other boxes and the GitHub connection have their own state at the same time. Import and Pull give the browser an encrypted file. Unlock adds its data key and decrypted records to page memory.",
+      "pause": 400
+    },
+    {
+      "text": "Create produces a new local file and leaves it open. Edit changes a memory-only draft; Save encrypts the new records into the local file and keeps the box open. Lock discards its plaintext and draft. Pull locks it before fetching a replacement, even when that fetch fails. Delete from this browser removes its active local file and locks it; retained migration backups stay. These actions do not automatically change GitHub or downloaded copies.",
+      "pause": 400
+    }
+  ],
+  "what-forgetting-this-browser-means": [
+    {
+      "text": "What forgetting this browser means.",
+      "pause": 500
+    },
+    {
+      "text": "There is currently no “Forget this key” button. The displayed known-key list is computed from local boxes, fetched remote boxes, and the current key connection. There is no separate permanent key address book to erase.",
+      "pause": 400
+    },
+    {
+      "text": "Clearing this site's data in browser settings, then reloading or closing all app tabs for this site, removes the app's local box files, retained backups, preferences, and live sessions. It also loses any local changes you have not exported or pushed. This is a browser operation, not a button on this page.",
+      "pause": 400
+    },
+    {
+      "text": "The key, GitHub, existing downloads, and clipboard are outside that erasure. Connecting with the configured key can recover the GitHub access profile again. Pulling or importing a box makes its listed credentials known again, even while the box is locked. A retained backup can also bring old metadata back if imported.",
+      "pause": 400
+    },
+    {
+      "text": "Removing one credential from one box is different: it edits that box's local file. It does not erase the credential from the physical key, change other copies, or rotate the box's data key. It is not full revocation. See recovery and backups before discarding your only copy.",
+      "pause": 400
+    }
+  ],
+  "limits-and-code-behind-the-map": [
+    {
+      "text": "Limits and code behind the map.",
+      "pause": 500
+    },
+    {
+      "text": "These diagrams describe application data, not every browser or hardware byte. Authenticator counters and PIN retry state, browser history/caches, operating-system snapshots, extensions, and copies made by other software are outside the map. Clearing a JavaScript reference is not a claim of forensic memory erasure. Unplugging the key is not a Lock action: an already-open box and a connected token stay in page memory until an action clears them.",
+      "pause": 400
+    },
+    {
+      "text": "No transaction spans the hardware key, browser database, and GitHub. A key creation can succeed before a local save fails. A backup can be retained before a later edit fails. A GitHub write can succeed before its response is lost. Cancellation cannot undo writes that have already completed. The explorer calls these cases out.",
+      "pause": 400
+    },
+    {
+      "text": "This map describes the key-held GitHub access preview in PR #35. It is an explanation checked against the implementation, not a formal proof or physical-device compatibility claim. The source owners are web/app.js (actions and known-key list), web/key-access.js and web/github-access-session.js (key profile and connection), web/box-session.js and web/store.js (box files and backups), web/record-session.js (drafts), web/clipboard.js, and web/webauthn.js. Preview and production are separate website addresses with separate browser storage and key credential scopes.",
+      "pause": 400
+    }
+  ],
+  "_source": {
+    "file": "state.md",
+    "sha256": "aaf563350c30ff16b7f35c23549beacb5888312ec07c1d11d744e28adaafaf05"
+  }
+}

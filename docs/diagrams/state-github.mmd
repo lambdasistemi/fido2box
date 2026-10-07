@@ -1,0 +1,9 @@
+stateDiagram-v2
+    direction TB
+    state "Disconnected" as Off
+    state "Verifying access" as Busy
+    state "Connected" as On
+    Off --> Busy: Connect / Set up
+    Busy --> On: Verified
+    Busy --> Off: Cancel / Fail
+    On --> Off: Disconnect

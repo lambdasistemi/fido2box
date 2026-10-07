@@ -27,6 +27,8 @@ async function main() {
       ['/docs/assets/recovery-path.svg', '<svg'],
       ['/docs/', 'fido2box', 1], ['/docs/development/', 'Development'],
       ['/docs/recovery/', 'GitHub access', 1],
+      ['/docs/state/', 'What changes when I act?', 3],
+      ['/docs/assets/state-explorer.js', 'state-action'],
       ['/docs/architecture/system/', 'Context and trust boundaries', 5],
       ['/docs/architecture/roadmap/', 'Decisions and required evidence', 1],
       ['/docs/architecture/system-design-skill/', 'Plan the formal design loop', 1],
