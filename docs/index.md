@@ -11,5 +11,8 @@ This is experimental recovery software. Read the
 [security boundaries](security.md) and rehearse
 [recovery and backups](recovery.md) before relying on it.
 
+The [comparison with similar systems](comparison.md) explains how its recovery
+workflow, storage, and authenticator dependencies differ from password managers.
+
 The repository is licensed under
 [Apache-2.0](https://github.com/lambdasistemi/fido2box/blob/main/LICENSE).

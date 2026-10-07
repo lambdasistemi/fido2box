@@ -31,6 +31,7 @@ markdown_extensions:
   - pymdownx.superfences
 nav:
   - Overview: index.md
+  - Comparison with similar systems: comparison.md
   - Recovery and backups: recovery.md
   - Security boundaries: security.md
   - Development: development.md
