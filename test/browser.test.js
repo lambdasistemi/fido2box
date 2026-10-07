@@ -7,7 +7,7 @@ if (!chrome) { console.error('FAILED: Chrome/Chromium is required; run nix devel
 const WEB = path.join(__dirname, '..', 'web'); let n = 0, fails = 0;
 const ok = (c, m) => { n++; if (c) console.log('ok  ' + m); else { fails++; console.log('FAIL ' + m); } };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
 const server = http.createServer((q, r) => {
   const p = decodeURIComponent(q.url.split('?')[0]).replace(/^\//, '') || 'index.html';
   if (p === 'COMMIT') { r.writeHead(200); return r.end('0123456789abcdef0123456789abcdef01234567\n'); }
@@ -56,7 +56,7 @@ async function main() {
   const click = (s) => run(`${q(s)}.click()`); const fill = (s, v) => run(`${q(s)}.value = ${JSON.stringify(v)}`);
   const text = () => run('document.body.innerText'); const has = async (t) => (await text()).includes(t);
   const btn = (label) => run(`[...document.querySelectorAll('button,a.btn')].find((b) => b.textContent.trim() === ${JSON.stringify(label)}).click()`);
-  const open = async (hash = '') => { await send('Page.navigate', { url: 'about:blank' }); await send('Page.navigate', { url: base + hash }); await sleep(800); };   // always a real reload
+  const open = async (hash = '') => { await send('Page.navigate', { url: 'about:blank' }); await send('Page.navigate', { url: base + hash }); if (!await until("document.readyState === 'complete' && !!document.querySelector('#app')?.firstElementChild")) throw new Error('App did not render after navigation'); };   // always a real reload
   const screenshot = async (name) => {
     if (!process.env.FIDO_UI_SCREENSHOTS) return;
     fs.mkdirSync(process.env.FIDO_UI_SCREENSHOTS, { recursive: true });
