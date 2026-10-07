@@ -4,6 +4,7 @@ import { safeUrl } from './url.js';
 import { RP, unlockVault, enrolKey, detectKey, probeKey, writeLabel, readLabel } from './webauthn.js';
 import { NAME_RE, listRemote, fetchRemote, saveToGitHub } from './github.js';
 import { lib } from './store.js';
+import { helpButton, inlineHelpEnabled, setInlineHelp, closeHelp, documentationView } from './guidance.js';
 const $app = document.getElementById('app'), $status = document.getElementById('status');
 const h = (tag, props, ...kids) => {
   const e = document.createElement(tag);
@@ -123,7 +124,7 @@ function boxesView() {
     if (local(name)) throw new Error('A box named "' + name + '" is already in this browser. Delete it first, or rename the file.');
     await lib.put(name, box); await reload(); say('Imported "' + name + '".'); ev.target.value = ''; }) } });
   const nameIn = h('input', { id: 'newName', placeholder: 'box name, e.g. paolo', maxlength: 40 }), kp = keyPicker('newKey', []);
-  const form = S.newOpen ? h('div', { class: 'card' }, h('h2', null, 'New box'),
+  const form = S.newOpen ? h('div', { class: 'card' }, h('h2', null, 'New box ', helpButton('create')),
     h('label', { for: 'newName' }, 'Name (letters, digits, - and _)'), nameIn, h('label', { for: 'newKey' }, 'Security key name'), kp.node,
     h('p', { class: 'muted small' }, 'Plug in the hardware security key you will open this box with, and only that one. It asks for its PIN and a touch, twice.'),
     h('div', { class: 'row' }, h('button', { class: 'primary', id: 'createBox', on: { click: act(async () => {
@@ -138,9 +139,9 @@ function boxesView() {
       h('td', null, l ? chip('this browser') : null, r ? ghLink('GitHub ↗', 'blob/main/boxes/' + n + '.json', 'chip') : null),
       h('td', null, h('span', { class: 'mobile-label' }, 'Keys: '), String(keysOf(b).length)), h('td', null, 'rev ' + (b.rev || 0)), h('td', null, chip(st.t, st.c))); });
   return h('div', null,
-    h('div', { class: 'row sp' }, h('h1', null, 'Boxes'), h('div', { class: 'row' },
+    h('div', { class: 'row sp' }, h('h1', null, 'Boxes ', helpButton('boxes')), h('div', { class: 'row' },
       h('button', { class: 'primary', id: 'newBtn', on: { click: () => { S.newOpen = true; render(); } } }, 'New box'),
-      h('button', { id: 'importBtn', on: { click: () => document.getElementById('importFile').click() } }, 'Import file'),
+      h('button', { id: 'importBtn', on: { click: () => document.getElementById('importFile').click() } }, 'Import file'), helpButton('recovery'),
       h('button', { id: 'refreshBtn', on: { click: act(async () => { await refreshRemote(); if (S.remote) say('GitHub: ' + Object.keys(S.remote).length + ' box(es).'); else say(S.remoteErr, true); }) } }, 'Refresh GitHub'))),
     h('p', { class: 'muted', id: 'intro' }, 'Your secrets, locked with your hardware keys. Each box holds your items; any of its enrolled keys can unlock it.'),
     file, form,
@@ -155,7 +156,7 @@ function boxView(name) {
   const head = h('div', null, h('p', { class: 'small' }, h('a', { href: '#/' }, '← Boxes')),
     h('div', { class: 'row sp' }, h('h1', null, name), h('div', { class: 'row' }, U ? chip('unlocked', 'live') : chip('locked'), U ? h('button', { id: 'lockBtn', on: { click: () => { delete S.unlocked[name]; render(); } } }, 'Lock') : null)));
   if (!rec && !rem) return h('div', null, head, h('div', { class: 'card empty' }, 'No such box.'));
-  const tabs = h('div', { class: 'tabs' }, ['items', 'keys', 'sync'].map((t) => h('button', { class: S.tab === t ? 'on' : '', id: 'tab-' + t, on: { click: () => { S.tab = t; S.confirm = ''; render(); } } }, { items: 'Items', keys: 'Security keys', sync: 'Sync' }[t])));
+  const tabs = h('div', { class: 'tabs' }, ['items', 'keys', 'sync'].map((t) => h('button', { class: S.tab === t ? 'on' : '', id: 'tab-' + t, on: { click: () => { S.tab = t; S.confirm = ''; render(); } } }, { items: 'Items', keys: 'Security keys', sync: 'Sync' }[t])), helpButton(S.tab));
   return h('div', null, head, tabs, S.tab === 'keys' ? keysTab(name, rec, U) : S.tab === 'sync' ? syncTab(name, rec, rem) : itemsTab(name, rec, rem, U));
 }
 function itemsTab(name, rec, rem, U) {
@@ -203,7 +204,7 @@ function connectCard(name) {
     h('p', { class: 'row' }, h('a', { class: 'btn', id: 'openGh', href: 'https://github.com/settings/personal-access-tokens/new', target: '_blank', rel: 'noopener noreferrer' }, 'Open GitHub to create the token')), h('label', { for: 'iToken' }, 'GitHub token'), tokIn,
     h('p', null, h('button', { class: 'primary', id: 'addToken', on: { click: act(async () => { const v = tokIn.value.trim(); if (!v) throw new Error('Paste the token first.');
       U.plain = U.plain.filter((i) => i.title !== TOKEN_TITLE); U.plain.push({ title: TOKEN_TITLE, url: 'https://github.com/settings/personal-access-tokens', secret: v }); await commit(name); say('The token is kept in the box.'); }) } }, 'Keep it in this box'))];
-  return h('div', { class: 'card', id: 'connect' }, h('h2', null, 'Connect to GitHub'),
+  return h('div', { class: 'card', id: 'connect' }, h('h2', null, 'Connect to GitHub ', helpButton('tokens')),
     step(1, repoOk, 'The repository that holds your boxes',
       repoOk ? h('p', { class: 'muted small' }, S.repo, ' · ', h('a', { href: '#/settings' }, 'change'))
         : [h('label', { for: 'repoIn2' }, 'GitHub repository (owner/name)'), repoIn, h('p', null, h('button', { id: 'saveRepo2', on: { click: act(async () => { const v = repoIn.value.trim(); if (!REPO_RE.test(v)) throw new Error('Use owner/name.'); S.repo = v; try { localStorage.setItem('box-repo', v); } catch (e) {} S.remote = null; say('Repository set.'); }) } }, 'Save'))]),
@@ -234,10 +235,10 @@ function keysView() {
   const map = new Map();
   for (const r of S.boxes) for (const k of keysOf(r.box)) { const e = map.get(k.id) || { id: k.id, names: new Set(), boxes: [] }; e.names.add(k.name); e.boxes.push(r.name); map.set(k.id, e); }
   const all = [...map.values()];
-  return h('div', null, h('div', { class: 'row sp' }, h('h1', null, 'Security keys'),
+  return h('div', null, h('div', { class: 'row sp' }, h('h1', null, 'Security keys ', helpButton('keys')),
       h('div', { class: 'row' }, h('button', { id: 'testKey', on: { click: act(async () => { S.probe = await withKey(probeKey); }) } }, 'Test the plugged-in key'), h('button', { class: 'primary', id: 'detectAll', on: { click: act(async () => { if (!all.length) throw new Error('No security keys are known here yet. They belong to boxes: make a box, or import one, then Detect can recognise its keys.'); const id = await detect(all.map((e) => e.id)); S.detected = id; const e = map.get(id); say(e ? '"' + [...e.names].join(', ') + '" is inserted.' : 'A key answered that is not in any box here.'); }) } }, 'Detect the inserted key (PIN, touch)'))),
     h('p', { class: 'muted small' }, 'A web page cannot see which key is plugged in until you use it. Detection asks the key to sign (most keys, like yours, ask for the PIN and a touch) and matches its answer to the keys listed in your boxes. A wrong PIN uses up one of the tries the key allows.'),
-    h('div', { class: 'card', id: 'labelCard' }, h('h2', null, 'Name a key'),
+    h('div', { class: 'card', id: 'labelCard' }, h('h2', null, 'Name a key ', helpButton('labels')),
       h('p', { class: 'muted small' }, 'Write a name on the plugged-in key itself, so you can tell your identical keys apart later. It is stored on the key (one of its free slots), readable only by this site, and wiped if the key is reset. Needs the PIN and a touch.'),
       h('label', { for: 'labelName' }, 'Key label'), h('div', { class: 'row' }, labelIn, h('button', { id: 'labelBtn', on: { click: act(async () => { const v = labelIn.value.trim(); await withKey(() => writeLabel(v)); say('The label "' + v + '" is written on the key.'); }) } }, 'Write it on the key'),
         h('button', { id: 'whoBtn', on: { click: act(async () => { const v = await withKey(readLabelOrNone); S.who = v ? 'This key says: "' + v + '".' : 'No label found on this key (or the request was cancelled).'; say(S.who); }) } }, 'Who is this? (PIN, touch)')),
@@ -255,11 +256,17 @@ function keysView() {
 // ---------- Settings ----------
 function settingsView() {
   const repo = h('input', { id: 'repoIn', class: 'wide', value: S.repo, placeholder: 'owner/name, e.g. paolino/fido-box' }), tok = h('input', { id: 'tokIn', class: 'wide', type: 'password', autocomplete: 'off', placeholder: 'github_pat_…' });
+  const helpNote = h('p', { id: 'inlineHelpNote', class: 'muted small', role: 'status' }, 'Show question-mark buttons beside actions and concepts. Your choice is saved in this browser; Documentation is always available.');
+  const helpToggle = h('input', { id: 'inlineHelp', type: 'checkbox', checked: inlineHelpEnabled(), 'aria-describedby': 'inlineHelpNote', on: { change: (event) => {
+    const saved = setInlineHelp(event.target.checked);
+    helpNote.textContent = saved ? 'Inline help ' + (event.target.checked ? 'enabled' : 'disabled') + '. Saved in this browser.' : 'Changed for this page session. Browser storage is unavailable, so this choice cannot be remembered after reload.';
+  } } });
   return h('div', null, h('h1', null, 'Settings'),
     h('p', { class: 'muted' }, 'Choose where your encrypted boxes are backed up. Appearance is always available in the header.'),
-    h('div', { class: 'card' }, h('h2', null, 'Box repository'), h('p', { class: 'muted small' }, 'One GitHub repository holds the boxes as boxes/NAME.json. The name is not secret; it is remembered in this browser.'), h('label', { for: 'repoIn' }, 'GitHub repository (owner/name)'), repo,
+    h('div', { class: 'card' }, h('h2', null, 'Help and documentation'), h('label', { class: 'check-row', for: 'inlineHelp' }, helpToggle, 'Show inline help'), helpNote, h('a', { href: '#/docs' }, 'Open documentation →')),
+    h('div', { class: 'card' }, h('h2', null, 'Box repository ', helpButton('sync')), h('p', { class: 'muted small' }, 'One GitHub repository holds the boxes as boxes/NAME.json. The name is not secret; it is remembered in this browser.'), h('label', { for: 'repoIn' }, 'GitHub repository (owner/name)'), repo,
       h('p', null, h('button', { class: 'primary', id: 'saveRepo', on: { click: act(async () => { const v = repo.value.trim(); if (!REPO_RE.test(v)) throw new Error('Use owner/name.'); S.repo = v; try { localStorage.setItem('box-repo', v); } catch (e) {} S.remote = null; say('Repository set.'); }) } }, 'Save'))),
-    h('div', { class: 'card' }, h('h2', null, 'GitHub access'), h('p', { class: 'muted small' }, 'Normally the token is kept inside a box and used once you unlock it. To look at GitHub before unlocking anything, paste a token for this session only; it is not stored. Create one at ',
+    h('div', { class: 'card' }, h('h2', null, 'GitHub access ', helpButton('tokens')), h('p', { class: 'muted small' }, 'Normally the token is kept inside a box and used once you unlock it. To look at GitHub before unlocking anything, paste a token for this session only; it is not stored. Create one at ',
       h('a', { href: 'https://github.com/settings/personal-access-tokens/new', target: '_blank', rel: 'noopener noreferrer' }, 'github.com/settings/personal-access-tokens/new'), ': only the box repository, Contents read and write.'),
       h('label', { for: 'tokIn' }, 'GitHub token'), tok, h('p', { class: 'row' }, h('button', { id: 'useTok', on: { click: act(async () => { S.token = tok.value.trim(); tok.value = ''; await refreshRemote(); say(S.remote ? 'Connected: ' + Object.keys(S.remote).length + ' box(es) on GitHub.' : S.remoteErr, !S.remote); }) } }, 'Use for this session'),
         S.token ? h('button', { on: { click: () => { S.token = ''; S.remote = null; render(); } } }, 'Forget it') : null)));
@@ -268,17 +275,18 @@ function settingsView() {
 // ---------- routing ----------
 function render() {
   const parts = location.hash.replace(/^#\/?/, '').split('/'), view = parts[0];
-  for (const id of ['boxes', 'keys', 'settings']) {
+  for (const id of ['boxes', 'keys', 'docs', 'settings']) {
     const link = document.getElementById('n-' + id), active = (view || 'boxes') === id || (id === 'boxes' && view === 'box');
     link.className = active ? 'on' : '';
     if (active) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
   }
-  const node = view === 'box' ? boxView(decodeURIComponent(parts[1] || '')) : view === 'keys' ? keysView() : view === 'settings' ? settingsView() : boxesView();
+  const node = view === 'box' ? boxView(decodeURIComponent(parts[1] || '')) : view === 'keys' ? keysView() : view === 'docs' ? documentationView() : view === 'settings' ? settingsView() : boxesView();
   $app.replaceChildren(node);
+  if (view === 'docs' && parts[1]) document.getElementById('docs-' + parts[1])?.focus();
 }
 document.getElementById('where').textContent = RP === 'localhost' ? 'rehearsal on localhost' : RP;
 document.querySelector('.skip-link').addEventListener('click', (event) => { event.preventDefault(); $app.focus(); });
-window.addEventListener('hashchange', () => { S.confirm = ''; render(); });
+window.addEventListener('hashchange', () => { closeHelp(); S.confirm = ''; render(); });
 reload().then(render).catch((e) => { $app.textContent = 'This browser cannot keep a library of boxes: ' + e.message; });
 // which commit of the code is being served (the deployment writes COMMIT next to the app)
 fetch('COMMIT', { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')).then((t) => { const sha = t.trim(); if (/^[0-9a-f]{40}$/.test(sha)) { const a = document.getElementById('commitLink'); a.textContent = sha.slice(0, 7); a.href = 'https://github.com/lambdasistemi/fido2box/commit/' + sha; a.hidden = false; } }).catch(() => {});
