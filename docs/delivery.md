@@ -6,6 +6,12 @@ maintainer. Each Nix job installs Nix and configures the shared Cachix cache;
 jobs do not assume a shared machine or store. Build Gate realizes the site,
 shell, and sandboxed checks before dependent jobs run.
 
+Nix jobs use `.github/actions/setup-nix`, a local composite action with the
+supported Nix installer and Cachix v17 (Node.js 24). This replaces the shared
+helper's retired Node.js 20 cache dependency without suppressing runtime
+warnings. Keep the tooling regression guard and inspect nested action metadata
+when updating action versions. Every local action call follows checkout.
+
 All external contributors require workflow approval. Approved fork PRs run on
 ephemeral GitHub-hosted runners with read-only repository permissions and no
 repository secrets. They can read the public cache without upload credentials.
