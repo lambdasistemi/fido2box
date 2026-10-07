@@ -22,7 +22,7 @@ claim.
 Independent outcome: named fields and optional confirmation obey the contract;
 no URL is required and only the primary values enter the serialized record.
 
-- [ ] Write failing behavioral cases in `test/records.test.cjs`; implement the
+- [x] Write failing behavioral cases in `test/records.test.cjs`; implement the
       modeled record/draft/suggestion/validation functions in `web/records.js`.
       Cover blank/duplicate names, stable IDs, undo, exact strings, reserved
       titles, legacy title provenance, optional URL and optional double entry.
@@ -104,3 +104,9 @@ trip map to draft/codec tests; masked rendering and service separation map to
 browser tests; the three confirmation cases map to exact-match, mismatch and
 opt-out draft tests. Proofs do not establish JSON, cryptographic or browser
 correctness; all corresponding implementation tests remain required.
+
+Record-model evidence: all 18 behavioral checks executed against unimplemented
+public functions and failed, then passed with the implementation, including 256
+generated records. The earlier missing-module run was not behavioral evidence.
+`nix develop --quiet -c just typecheck unit` passed 23 core, 18 record and two
+tooling checks. This does not establish codec, storage or UI behavior.

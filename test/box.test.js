@@ -111,4 +111,5 @@ const prf = (s) => B.enc.encode(s.padEnd(32, '.')).slice(0, 32);       // a fake
     assert.ok(B.NAME_RE.test('paolo_2-b') && !B.NAME_RE.test('a/b') && !B.NAME_RE.test('') && !B.NAME_RE.test('x'.repeat(41))); ok('box names: letters, digits, - and _, up to 40');
   }
   console.log('\n' + n + ' checks passed');
+  await require('./records.test.cjs')();
 })().catch((e) => { console.error('FAILED:', e.message); process.exit(1); });

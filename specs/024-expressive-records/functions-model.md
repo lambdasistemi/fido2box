@@ -8,15 +8,15 @@ Unchanged call surfaces and implementation-private helpers are omitted.
 
 ## `web/records.js`
 
-| Signature                                                            | Requirement / constraints                                   |
-| -------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `createRecord(id: RecordId, title: string): RecoveryRecord`          | FR-001; new title validated before persistence              |
-| `suggestField(suggestion: SuggestionName, id: FieldId): Field`       | FR-003; names/defaults from spec; empty value               |
-| `beginDraft(record: RecoveryRecord): RecordDraft`                    | FR-001; original retained immutably                         |
-| `changeDraft(draft: RecordDraft, change: DraftChange): RecordDraft`  | FR-001–003; exact strings and ID-based changes              |
-| `validateRecord(record: RecoveryRecord): readonly ValidationIssue[]` | FR-002/009; strict schema and legacy flag consistency       |
-| `validateDraft(draft: RecordDraft): readonly ValidationIssue[]`      | FR-001/003/010; includes title provenance and reserved name |
-| `finishDraft(draft: RecordDraft): Result<RecoveryRecord>`            | FR-001/007; no partial invalid result                       |
+| Signature                                                           | Requirement / constraints                                       |
+| ------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `createRecord(id: RecordId, title: string): RecoveryRecord`         | FR-001; new title validated before persistence                  |
+| `suggestField(suggestion: SuggestionName, id: FieldId): Field`      | FR-003; names/defaults from spec; empty value                   |
+| `beginDraft(record: RecoveryRecord): RecordDraft`                   | FR-001; original retained immutably                             |
+| `changeDraft(draft: RecordDraft, change: DraftChange): RecordDraft` | FR-001–003; exact strings and ID-based changes                  |
+| `validateRecord(record: unknown): readonly ValidationIssue[]`       | FR-002/009; strict untrusted schema and legacy flag consistency |
+| `validateDraft(draft: RecordDraft): readonly ValidationIssue[]`     | FR-001/003/010; includes title provenance and reserved name     |
+| `finishDraft(draft: RecordDraft): Result<RecoveryRecord>`           | FR-001/007; no partial invalid result                           |
 
 SuggestionName is the closed set Account, Password or recovery key, Website,
 Backup codes, Notes. Empty new drafts use createRecord with a supplied ID;
