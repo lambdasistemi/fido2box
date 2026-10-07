@@ -69,7 +69,7 @@ async function main() {
   };
   const open = async (hash = '') => {   // always a real reload, including its asynchronous first render
     await send('Page.navigate', { url: 'about:blank' }); await send('Page.navigate', { url: base + hash });
-    if (!await until(`location.href === ${JSON.stringify(base + hash)} && document.readyState === 'complete' && !!document.querySelector('#app > *')`)) throw new Error('App did not render after navigation to ' + base + hash);
+    if (!await until(`location.href === ${JSON.stringify(base + hash)} && document.readyState === 'complete' && !!document.querySelector('#app > *')`)) throw new Error('App did not render after navigation to ' + base + hash + ': ' + JSON.stringify(await run("({url:location.href,state:document.readyState,app:document.querySelector('#app')?.textContent})")) + '; errors: ' + JSON.stringify(pageErrors));
   };
   const screenshot = async (name) => {
     if (!process.env.FIDO_UI_SCREENSHOTS) return;

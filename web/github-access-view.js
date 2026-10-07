@@ -17,7 +17,8 @@ export function createGitHubAccessView(session,change) {
         h('p',{class:'small'},'One-time setup: create a GitHub token for only your box repository, with Contents read and write. The token is encrypted and stored on the key. Requires a key and browser supporting PRF and largeBlob. You may be asked for several touches.'),
         h('a',{href:'https://github.com/settings/personal-access-tokens/new',target:'_blank',rel:'noopener noreferrer'},'Create a GitHub token ↗'),
         h('label',{for:'keyRepo'},'Repository (owner/name)'),repo,h('label',{for:'keyToken'},'GitHub token'),token,
-        h('p',null,h('button',{id:'saveKeyAccess',type:'submit',class:'primary'},state.renew?'Save renewed access on key':'Save access on key'))):null,
+        h('p',{class:'row'},h('button',{id:'saveKeyAccess',type:'submit',class:'primary'},state.renew?'Save renewed access on key':'Save access on key'),
+          h('button',{id:'cancelKeySetup',type:'button',on:{click:()=>{token.value='';setup=false;change();document.getElementById('setupKey')?.focus();}}},'Cancel setup'))):null,
       h('p',{id:'keyAccessStatus',role:'status','aria-live':'polite',class:'small'},state.message));
   };
 }

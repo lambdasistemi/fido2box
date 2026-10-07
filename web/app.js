@@ -258,7 +258,7 @@ function boxesView() {
     accessCard(), file, form, retainedBackups(),
     h('p', { class: 'muted small', id: 'ghLine' }, S.remote ? ['GitHub: ', ghLink(S.repo, 'tree/main/boxes'), ', ' + Object.keys(S.remote||{}).length + ' box(es).'] : [S.remoteErr || 'GitHub: not checked.', ...(ghUrl('tree/main/boxes') ? [' ', ghLink('Open the repository ↗', 'tree/main/boxes')] : [])]),
     names.length ? h('div', { class: 'card' }, h('table', null, h('tr', null, h('th', null, 'Name'), h('th', null, 'Where'), h('th', null, 'Security keys'), h('th', null, 'Version'), h('th', null, 'Status')), rows))
-      : h('div', { class: 'card empty', id: 'emptyBoxes' }, h('p', null, 'No boxes yet.'), h('p', { class: 'small' }, 'Make a new one, or import a box file. If you are recovering, download your box file from ', REPO_RE.test(S.repo) ? h('a', { href: 'https://github.com/' + S.repo + '/tree/main/boxes', target: '_blank', rel: 'noopener noreferrer' }, S.repo) : 'your repository on GitHub', ' (log in with your key) and import it here.')));
+      : h('div', { class: 'card empty', id: 'emptyBoxes' }, h('p', null, 'No boxes yet.'), h('p', { class: 'small' }, 'To recover from GitHub, connect with your configured security key above, then select and Pull a listed box. You can also import a downloaded box file or create a new box.')));
 }
 
 // ---------- one box ----------

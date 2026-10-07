@@ -2,9 +2,13 @@
 // browser state: CDP credential export does not transfer its PRF secret.
 module.exports=async({run,send,ok,base,open,click,fill,btn,until,auth,addRecord,screenshot})=>{
   const key=await auth({hasResidentKey:true,hasLargeBlob:true});
-  await send('Storage.clearDataForOrigin',{origin:base.slice(0,-1),storageTypes:'all'});
+  const wipe=async()=>{await send('Page.navigate',{url:'about:blank'});await until("location.href==='about:blank'");await send('Storage.clearDataForOrigin',{origin:base.slice(0,-1),storageTypes:'all'});};
+  await wipe();
   await open();await click('#setupKey');
   ok(await run("document.querySelector('#keyToken').type==='password' && !!document.querySelector('label[for=keyToken]')"),'setup is masked and labeled before any box exists');
+  await fill('#keyToken','synthetic-discard');await click('#cancelKeySetup');
+  ok(await run("!document.querySelector('#keyToken') && document.activeElement.id==='setupKey' && !document.body.innerHTML.includes('synthetic-discard')"),'canceling setup drops the token form and restores focus');
+  await click('#setupKey');
   await fill('#keyRepo','owner/recovery');await fill('#keyToken','ghp_FAKE');await click('#saveKeyAccess');
   ok(await until("document.querySelector('#keyAccessStatus').textContent.includes('Saved on key and verified')"),'setup validates GitHub and writes and reads back encrypted access on a real virtual key');
   const creds=await send('WebAuthn.getCredentials',{authenticatorId:key.authenticatorId});
@@ -15,7 +19,7 @@ module.exports=async({run,send,ok,base,open,click,fill,btn,until,auth,addRecord,
   await addRecord('Recovered account','https://example.org','synthetic-recovery-secret');await click('#tab-sync');await click('#pushBtn');
   ok(await until("!!window.__gh.files['boxes/key-recovery.json']"),'UI pushes an encrypted box using access from the key');
   const files=await run('window.__gh.files');
-  await send('Storage.clearDataForOrigin',{origin:base.slice(0,-1),storageTypes:'all'});
+  await wipe();
   await open();
   ok(await run("localStorage.getItem('box-repo')===null && lib.list().then(x=>x.length===0)"),'recovery begins with no local box or repository setting');
   await run(`window.__gh.files=${JSON.stringify(files)}`);
