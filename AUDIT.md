@@ -28,7 +28,7 @@ The code is plain ES modules served as they are (no build). Each file below has 
 | File | Lines | Trusts | What it is |
 |---|---|---|---|
 | `web/crypto.js` | about 130 | WebCrypto only | **The whole construction and the box format.** No page, network or key: a key's secret number is an argument. `wrapKey`, `wrapDataKey`, `unwrapDataKey`, `encryptItem`, `decryptItem`, `parseItem`, `listItems`. Read this first and most carefully. |
-| `web/webauthn.js` | about 115 | the browser's WebAuthn | Everything that talks to a key: ask for the secret number (`prfFor`), enrol (`enrolKey`), detect, test, label. Always `userVerification: 'required'` for the secret number; the user-verified flag is checked. |
+| `web/webauthn.js` | about 115 | the browser's WebAuthn | Everything that talks to a key: ask for the secret number (`prfFor`), enrol (`enrolKey`, `enrolKnownKey`), detect, test, label. Always `userVerification: 'required'` for the secret number; the user-verified flag is checked. |
 | `web/url.js` | 10 | | `safeUrl`: the only gate for what Open may navigate to. |
 | `web/github.js` | about 65 | api.github.com | List, read and write `boxes/NAME.json`. The token is only sent there. Refuses to overwrite a version with the same or a higher `rev`. |
 | `web/store.js` | 30 | IndexedDB | The library of locked boxes in the browser. |
@@ -40,6 +40,7 @@ Out of scope: the browser, the operating system, the hardware key's firmware, Gi
 ## Known limits and questions for a reviewer
 
 - **No associated data (AAD)** in the AES-GCM calls. Items and wrapped keys are not bound to their position or to the file. An attacker who can rewrite the file can reorder or drop items (not read or forge them).
+- **Recognized credentials are reused across boxes.** Enrollment obtains a fresh PIN-verified PRF response for the selected credential; every new box still receives a fresh random data key. The credential ID and nickname remain public and correlate those boxes. Manual creation excludes credentials from all available boxes. Legacy credentials on the same physical key are not automatically merged.
 - **Constant PRF salt** and **zero HKDF salt**: acceptable because the PRF output is already a per-credential secret, but worth a second opinion.
 - **One data key for all items**, with random 96-bit IVs: fine for a handful of items, not a design for thousands.
 - **Trust in the server at use time.** No Subresource Integrity (the code is one origin). A Content-Security-Policy is set by a meta tag (scripts and styles only from the page's own origin, connections only to api.github.com, no framing control because a meta tag cannot set it). Any page served from the same host can still ask your key for the unlock secret, so serve the app from a host that serves nothing else.

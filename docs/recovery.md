@@ -24,3 +24,28 @@ Until [issue #16](https://github.com/lambdasistemi/fido2box/issues/16) is
 resolved, lock a box before Pull and unlock it again afterward. Keep downloaded
 backups before synchronization; the current Pull flow can retain stale unlocked
 state.
+
+## Recognizing a key and choosing its name
+
+Choose **Identify my key** when creating a box or adding a key. The app checks
+credentials in local boxes, including locked boxes, and GitHub boxes already
+loaded in the current session. You do not need to unlock them. If the backup is
+not available here yet, import its JSON file first. GitHub boxes that need an
+unavailable token cannot be searched.
+
+A recognized credential reuses its existing nickname. Creating or adding it
+requires a fresh PIN/touch confirmation from that same key. If identification is
+cancelled or finds no match, the app cannot conclude that the hardware is new:
+retry or import the missing box.
+
+For a key not registered in the available boxes, choose **Use an unregistered
+key**. Its nickname is optional; the app supplies a name such as “Security key
+1” when blank. Nicknames are public descriptions stored with the box, not
+passwords and not labels written onto the hardware. Manual enrollment refuses
+known hardware so it cannot silently acquire another nickname.
+
+The optional hardware label on the Security keys page is separate. Reading one
+suggests a nickname; it is not proof of identity and never renames existing box
+entries. Older boxes may already use several credentials or nicknames for the
+same hardware. The app preserves these records; it cannot infer physical key
+identity from names alone.

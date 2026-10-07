@@ -227,7 +227,9 @@ async function main() {
     // ===== keys =====
     await click('#tab-keys'); await sleep(200);
     ok(await has('the only security key'), 'the only key cannot be removed');
-    await fill('#kName', 'hk-bag'); await click('#addKey');
+    await send('WebAuthn.setAutomaticPresenceSimulation', { authenticatorId: key1.authenticatorId, enabled: false });
+    const bagKey = await auth();
+    await click('#kNameManual'); await fill('#kName', 'hk-bag'); await click('#addKey');
     ok(await until(`document.body.innerText.includes('hk-bag')`), 'a second key is added (needs the box open)');
     await click('#detectBtn'); await sleep(800);
     ok(await until(`document.body.innerText.includes('inserted now')`), 'Detect shows which key is inserted');
@@ -235,7 +237,9 @@ async function main() {
     ok((await text()).includes('hk-home') && (await text()).includes('hk-bag'), 'removing a key asks first');
     await btn('Yes, remove'); await sleep(500);
     ok(await run("lib.get('paolo').then((r) => r.box.keys.map((k) => k.name).join())") === 'hk-bag', 'removing a key removes exactly that key');
-    await fill('#kName', 'hk-home'); await click('#addKey'); await until(`document.body.innerText.includes('hk-home')`);
+    await send('WebAuthn.removeVirtualAuthenticator', { authenticatorId: bagKey.authenticatorId });
+    await send('WebAuthn.setAutomaticPresenceSimulation', { authenticatorId: key1.authenticatorId, enabled: true });
+    await click('#kNameManual'); await fill('#kName', 'hk-home'); await click('#addKey'); await until(`document.body.innerText.includes('hk-home')`);
     // ===== lock, reload, unlock again =====
     await click('#lockBtn'); await sleep(200); await click('#tab-items'); await sleep(200);
     ok(await has('This box is locked') && !(await has('Google')), 'locked: nothing readable');
@@ -255,9 +259,27 @@ async function main() {
     await run(`document.querySelector('#lockBtn') && void 0`); await open('#/box/paolo'); await click('#unlockBtn'); await until(`!!${q('#lockBtn')}`);
     // ===== naming a key: recognised, already in the box, or new =====
     await open('#/'); await click('#newBtn'); await sleep(250);
-    ok(await run(`!!${q('#newKeyFind')}`) && await has('Keys you have used'), 'New box: once the browser knows keys, it offers their names and a way to recognise the plugged-in one');
-    await click('#newKeyFind'); await until(`/^hk-/.test(${q('#newKey')}.value)`);   // the one virtual key holds several credentials and answers with any of them
-    ok(/This is "hk-(home|bag)"/.test(await text()), 'a key used before is recognised by a touch and its name is filled in');
+    ok(await run(`!!${q('#newKeyFind')} && ${q('#newKey')}.closest('[hidden]') !== null`) && await has('without unlocking'), 'New box identifies known keys before showing a nickname field, even with every box locked');
+    await click('#newKeyFind'); await until(`/^hk-/.test(${q('#newKey')}.value)`);
+    ok(/Recognized "hk-(home|bag)"/.test(await text()), 'a key used before is recognised by a touch and its name is filled in');
+    ok(await run(`${q('#newKey')}.readOnly`), 'recognized names cannot accidentally be edited');
+    await fill('#newName', 'swapped');
+    await send('WebAuthn.setAutomaticPresenceSimulation', { authenticatorId: key1.authenticatorId, enabled: false });
+    const swappedKey = await auth(); await click('#createBox');
+    await until(`document.body.innerText.includes('Cancelled')`);
+    ok(await run("lib.get('swapped').then(r => !r)") && await has('Cancelled'), 'swapping hardware after identification cannot enroll under the recognized name');
+    await send('WebAuthn.removeVirtualAuthenticator', { authenticatorId: swappedKey.authenticatorId });
+    await send('WebAuthn.setAutomaticPresenceSimulation', { authenticatorId: key1.authenticatorId, enabled: true });
+    const homeId = await run("lib.get('paolo').then(r => r.box.keys.find(k => k.name === 'hk-home').id)");
+    await fill('#newName', 'reuse'); await click('#createBox');
+    ok(await until(`location.hash === '#/box/reuse' && !!${q('#lockBtn')}`), 'a known key creates another box without asking for a new nickname');
+    ok(await run("lib.get('reuse').then(r => r.box.keys[0].id)") === homeId, 'recognized enrollment reuses the verified credential');
+    await open('#/box/reuse'); await click('#unlockBtn');
+    ok(await until(`!!${q('#lockBtn')}`), 'the reused credential unlocks the new box after a reload');
+    await open('#/'); await click('#newBtn'); await click('#newKeyManual'); await fill('#newName', 'duplicate'); await fill('#newKey', 'different-name'); await click('#createBox');
+    await until(`document.body.innerText.includes('already registered')`);
+    ok(await has('already registered') && await run("lib.get('duplicate').then(r => !r)"), 'manual enrollment cannot rename hardware already known in a locked box');
+    ok(await run(`${q('#newKey')}.value === 'different-name' && ${q('#newName')}.value === 'duplicate'`), 'a rejected enrollment preserves the form');
     await open('#/box/paolo'); await click('#unlockBtn'); await until(`!!${q('#lockBtn')}`); await click('#tab-keys'); await sleep(250);
     const nKeys = () => run(`lib.get('paolo').then((r) => r.box.keys.length)`); const before = await nKeys();
     await click('#kNameFind'); await until(`document.body.innerText.includes('already in this box')`);
@@ -266,8 +288,9 @@ async function main() {
     ok((await nKeys()) === before && await has('already in this box'), 'it cannot be added twice');
     await send('WebAuthn.setAutomaticPresenceSimulation', { authenticatorId: key1.authenticatorId, enabled: false });
     const keyN = await auth();
-    await click('#kNameFind'); await until(`document.body.innerText.includes('not a key you have used before')`);
-    ok(await has('not a key you have used before') && (await run(`${q('#kName')}.value`)) === '', 'a key no box lists is reported as new, to be named by you');
+    await click('#kNameManual'); await fill('#kName', 'keep-my-nickname');
+    await click('#kNameFind'); await until(`document.body.innerText.includes('Could not identify')`);
+    ok(await has('This does not mean the key is new') && (await run(`${q('#kName')}.value`)) === 'keep-my-nickname', 'inconclusive identification never calls the key new or discards a nickname');
     await fill('#kName', 'hk-new'); await click('#addKey'); await until(`document.body.innerText.includes('hk-new')`);
     ok((await nKeys()) === before + 1, 'a new key is added under the name you gave it');
     await send('WebAuthn.removeVirtualAuthenticator', { authenticatorId: keyN.authenticatorId });
@@ -284,8 +307,9 @@ async function main() {
     const key3 = await auth();
     await open('#/box/two');            // not there
     ok(await has('No such box'), 'an unknown box says so');
-    await open(); await click('#newBtn'); await fill('#newName', 'two'); await fill('#newKey', 'k1'); await click('#createBox');
+    await open(); await click('#newBtn'); await fill('#newName', 'two'); await click('#newKeyManual'); await click('#createBox');
     await until(`location.hash === '#/box/two' && !!${q('#lockBtn')}`);
+    ok(await run("lib.get('two').then(r => r.box.keys[0].name === 'Security key 1')"), 'an omitted nickname receives a readable automatic name');
     await fill('#iName', 'Site'); await fill('#iUrl', 'https://example.org'); await fill('#iSecret', 's1'); await click('#addItem'); await sleep(400);
     await click('#tab-sync'); await sleep(200);
     ok(await has('Connect to GitHub') && (await run(`${q('#openGh')}.href`)) === 'https://github.com/settings/personal-access-tokens/new', 'the Sync tab walks through connecting: the token step links to GitHub');
@@ -363,8 +387,19 @@ async function main() {
     ok(true, 'writing a label stores it on the key (PIN, touch)');
     await click('#whoBtn'); await until(`document.body.innerText.includes('This key says: "hk-bag"')`);
     ok(await has('This key says: "hk-bag"'), '"Who is this?" reads the label back from the key');
-    await open('#/'); await click('#newBtn'); await sleep(250); await click('#newKeyLabel'); await until(`${q('#newKey')}.value === 'hk-bag'`);
+    await open('#/'); await click('#newBtn'); await sleep(250); await click('#newKeyManual'); await click('#newKeyLabel'); await until(`${q('#newKey')}.value === 'hk-bag'`);
     ok((await run(`${q('#newKey')}.value`)) === 'hk-bag', 'the New box form can fill the key name from its label');
+    // A credential present only in fetched GitHub metadata is recognizable too.
+    await run(`(async () => { const {enrolKey} = await import('./webauthn.js'); const {emptyVault,newDataKey} = await import('./crypto.js'); const box = await enrolKey(emptyVault(location.hostname), 'remote-spare', newDataKey()); window.__gh.files['boxes/remote-only.json'] = JSON.stringify(box); })()`);
+    await run(`location.hash = '#/settings'`); await until(`!!${q('#tokIn')}`);
+    await fill('#tokIn', 'ghp_FAKE'); await click('#useTok'); await until(`document.body.innerText.includes('Connected:')`);
+    await run(`location.hash = '#/'`); await until(`!!${q('#newBtn')}`); await click('#newBtn');
+    await click('#newKeyFind'); await until(`${q('#newKeyHint')}.textContent.includes('remote-spare')`);
+    ok(await has('Recognized "remote-spare"') && await run("lib.get('remote-only').then(r => !r)"), 'a key from loaded GitHub metadata is recognized without pulling or unlocking its box');
+    await send('Emulation.setDeviceMetricsOverride', { width: 320, height: 800, deviceScaleFactor: 1, mobile: true });
+    ok(await noOverflow(), 'identification guidance and controls fit a 320px phone');
+    await run("document.querySelector('.key-picker').scrollIntoView({block:'center'})");
+    await sleep(3600); await screenshot('identify-key-phone');
   } finally { try { ws.close(); } catch (e) {} proc.kill(); server.close(); try { fs.rmSync(profile, { recursive: true, force: true }); } catch (e) {} }
   ok(pageErrors.length === 0, 'no uncaught page errors' + (pageErrors.length ? ': ' + pageErrors[0] : ''));
   console.log('\n' + (n - fails) + '/' + n + ' passed'); process.exit(fails ? 1 : 0);
