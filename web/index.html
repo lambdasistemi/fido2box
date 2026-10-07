@@ -5,15 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>fido2box</title>
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' https://api.github.com; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self' https://api.github.com; base-uri 'none'; form-action 'none'">
 <script src="theme.js"></script>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
 <a class="skip-link" href="#app">Skip to content</a>
 <header class="bar"><div class="in">
-  <a class="brand" href="#/" aria-label="fido2box home"><span class="brand-mark" aria-hidden="true">f</span>fido2box</a>
-  <nav aria-label="Main navigation"><a href="#/" id="n-boxes">Boxes</a><a href="#/keys" id="n-keys">Security keys</a><a href="#/docs" id="n-docs">Documentation</a><a href="#/settings" id="n-settings">Settings</a></nav>
+  <a class="brand" href="#/" aria-label="fido2box home"><span class="brand-mark" aria-hidden="true"><svg class="doghouse-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 14 16 5l11 9M8 12v15h5v-6a3 3 0 0 1 6 0v6h5V12"/><path d="M14 13h4"/></svg></span>fido2box</a>
+  <nav aria-label="Main navigation"><a href="#/" id="n-boxes"><svg class="nav-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m5 10 11-5 11 5v13l-11 5-11-5Zm0 0 11 5 11-5M16 15v13M10 8l11 5"/></svg>Boxes</a><a href="#/keys" id="n-keys"><svg class="nav-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="6"/><path d="m15 15 12 12m-5-5 4-4m-8 0 4-4"/></svg>Security keys</a><a href="#/docs" id="n-docs"><svg class="nav-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M16 8c-4-3-8-3-12-2v20c4-1 8-1 12 2 4-3 8-3 12-2V6c-4-1-8-1-12 2Zm0 0v20"/></svg>Documentation</a><a href="#/settings" id="n-settings"><svg class="nav-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 8h20M6 16h20M6 24h20"/><path d="M11 5v6m10 2v6M13 21v6" stroke-width="4"/></svg>Settings</a></nav>
   <div class="theme-switch" role="group" aria-label="Appearance">
     <button type="button" data-theme-choice="light" aria-pressed="false">Light</button>
     <button type="button" data-theme-choice="dark" aria-pressed="false">Dark</button>
