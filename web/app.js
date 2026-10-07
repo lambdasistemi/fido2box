@@ -7,6 +7,9 @@ import { element as h } from './dom.js';
 import { safeUrl } from './url.js';
 import { RP, unlockVault, enrolKey, enrolKnownKey, detectKey, probeKey, writeLabel, readLabel } from './webauthn.js';
 import { NAME_RE, listRemote, fetchRemote, saveToGitHub } from './github.js';
+import { REPO_RE } from './key-access-codec.js';
+import { createGitHubAccess } from './github-access-session.js';
+import { createGitHubAccessView } from './github-access-view.js';
 import { lib, backups } from './store.js';
 import { helpButton, inlineHelpEnabled, setInlineHelp, closeHelp, documentationView } from './guidance.js';
 const $app = /** @type {HTMLElement} */(document.getElementById('app')), $status = /** @type {HTMLElement} */(document.getElementById('status'));
@@ -14,7 +17,6 @@ const $app = /** @type {HTMLElement} */(document.getElementById('app')), $status
 /** @typedef {import('./box-format.js').SourceDocument} SourceDocument */
 /** @typedef {import('./box-session.js').SessionView} SessionView */
 /** @typedef {{id:string,names:Set<string>,boxes:Set<string>}} KnownKey */
-const REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 /** @type {{who:string,probe:Awaited<ReturnType<typeof probeKey>>|null,boxes:StoredBox[],remote:Record<string,SourceDocument>|null,remoteErr:string,retained:import('./store.js').Backup[],tab:string,repo:string,token:string,detected:string,confirm:string,newOpen:boolean,busy:boolean}} */
 const S = { who: '', probe: null, boxes: [], remote: null, remoteErr: '', retained: [], tab: 'items', repo: '', token: '', detected: '', confirm: '', newOpen: false, busy: false };
 const storedRepo = () => { try { return localStorage.getItem('box-repo') || ''; } catch (e) { return ''; } };
@@ -74,7 +76,11 @@ const shortId = (id) => id.replace(/[^A-Za-z0-9]/g, '').slice(0, 8);
 const keysOf = value => { const box = inspectBox(value).box; return box ? box.v === 1 ? box.entries : box.keys : []; };
 /** @param {unknown} value */
 const revision = value => inspectBox(value).box?.rev || 0;
-const currentToken = () => S.token || S.boxes.flatMap(rec => sessions.get(rec.name)?.payloads || []).find(p => p.type === 'github-token')?.secret || '';
+let explicitAccess=false, network=new AbortController();
+const currentToken = () => S.token || (!explicitAccess ? S.boxes.flatMap(rec => sessions.get(rec.name)?.payloads || []).find(p => p.type === 'github-token')?.secret : '') || '';
+function connectionChanged() { network.abort();network=new AbortController();S.remote=null;S.remoteErr=''; }
+const keyAccess=createGitHubAccess({change:()=>render(),publish:access=>{explicitAccess=true;connectionChanged();S.token=access?.token||'';if(access){S.repo=access.repo;void refreshRemote().then(render);}}});
+const accessCard=createGitHubAccessView(keyAccess,()=>render());
 /** @param {unknown} localBox @param {unknown} remoteBox */
 function sync(localBox, remoteBox) {
   if (localBox && !remoteBox) return S.remote ? { t: 'only here', c: 'warn' } : { t: '', c: '' };
@@ -85,11 +91,11 @@ function sync(localBox, remoteBox) {
 }
 async function refreshRemote() {
   S.remote = null; S.remoteErr = '';
-  const tok = currentToken();
+  const tok = currentToken(), repo=S.repo, signal=network.signal;
   if (!REPO_RE.test(S.repo)) { S.remoteErr = 'Set the repository in Settings.'; return; }
-  if (!tok) { S.remoteErr = 'Not connected: unlock a box that holds a GitHub token, or paste one in Settings.'; return; }
-  try { const names = await listRemote(S.repo, tok); const boxes = /** @type {Record<string,SourceDocument>} */ ({}); await Promise.all(names.map(async (n) => { const source=await fetchRemote(S.repo, tok, n); if(source)boxes[n]=source; })); S.remote = boxes; }
-  catch (e) { S.remoteErr = ghError(e); }
+  if (!tok) { S.remoteErr = 'Connect with your security key, or set up GitHub access on it.'; return; }
+  try { const names = await listRemote(repo, tok,undefined,signal); const boxes = /** @type {Record<string,SourceDocument>} */ ({}); await Promise.all(names.map(async (n) => { const source=await fetchRemote(repo, tok, n,undefined,signal); if(source)boxes[n]=source; })); if(!signal.aborted&&S.repo===repo&&currentToken()===tok)S.remote = boxes; }
+  catch (e) { if(!signal.aborted)S.remoteErr = ghError(e); }
 }
 const sessions = createBoxSessions({storage:lib,backups,newId:()=>crypto.randomUUID(),rpId:RP,unlock:box=>withKey(()=>unlockVault(box)),enrol:(name,data)=>withKey(()=>enrolKey(name,data))});
 /** @type {Record<string,string>} */
@@ -151,6 +157,7 @@ const ghLink = (text, p, cls) => (ghUrl(p) ? h('a', { class: cls || '', href: gh
 // Nicknames are public box metadata: recognizing a key never requires unlocking.
 function knownKeys() {
   /** @type {Map<string,KnownKey>} */ const map = new Map();
+  const access=keyAccess.reference();if(access)map.set(access.id,{id:access.id,names:new Set(['GitHub access key']),boxes:new Set()});
   const records = [...S.boxes, ...Object.entries(S.remote || {}).map(([name, source]) => ({ name, box:source.value }))];
   for (const r of records) {
     const rpId=inspectBox(r.box).box?.rpId; if (rpId && rpId !== RP) continue;
@@ -248,7 +255,7 @@ function boxesView() {
       h('button', { id: 'importBtn', on: { click: () => document.getElementById('importFile')?.click() } }, 'Import file'), helpButton('recovery'),
       h('button', { id: 'refreshBtn', on: { click: act(async () => { await refreshRemote(); if (S.remote) say('GitHub: ' + Object.keys(S.remote||{}).length + ' box(es).'); else say(S.remoteErr, true); }) } }, 'Refresh GitHub'))),
     h('p', { class: 'muted', id: 'intro' }, 'Your secrets, locked with your hardware keys. Each box holds your items; any of its enrolled keys can unlock it.'),
-    file, form, retainedBackups(),
+    accessCard(), file, form, retainedBackups(),
     h('p', { class: 'muted small', id: 'ghLine' }, S.remote ? ['GitHub: ', ghLink(S.repo, 'tree/main/boxes'), ', ' + Object.keys(S.remote||{}).length + ' box(es).'] : [S.remoteErr || 'GitHub: not checked.', ...(ghUrl('tree/main/boxes') ? [' ', ghLink('Open the repository ↗', 'tree/main/boxes')] : [])]),
     names.length ? h('div', { class: 'card' }, h('table', null, h('tr', null, h('th', null, 'Name'), h('th', null, 'Where'), h('th', null, 'Security keys'), h('th', null, 'Version'), h('th', null, 'Status')), rows))
       : h('div', { class: 'card empty', id: 'emptyBoxes' }, h('p', null, 'No boxes yet.'), h('p', { class: 'small' }, 'Make a new one, or import a box file. If you are recovering, download your box file from ', REPO_RE.test(S.repo) ? h('a', { href: 'https://github.com/' + S.repo + '/tree/main/boxes', target: '_blank', rel: 'noopener noreferrer' }, S.repo) : 'your repository on GitHub', ' (log in with your key) and import it here.')));
@@ -287,28 +294,15 @@ function keysTab(name, rec, U) {
       h('button', { class: 'primary', id: 'addKey', on: { click: act(async () => { const enroll=kp.enrollment(); await mutate(name,{kind:'add-key',name:'',enrol:enroll}); say('Security key added.'); }) } }, 'Add this security key')]
       : h('p', { class: 'muted' }, 'Unlock the box first (Items tab): adding a security key needs the box open.')));
 }
-// The three steps that make "Push to GitHub" work: a repository, a token kept inside the box, a connection test.
+// Legacy service records remain removable; new access lives on the key.
 /** @param {string} name */
 function connectCard(name) {
-  const U = sessions.get(name), hasTok = !!U && U.payloads.some((i) => i.type === 'github-token'), repoOk = REPO_RE.test(S.repo), conn = !!S.remote;
-  const step = (/** @type {number} */ n, /** @type {boolean} */ done, /** @type {string} */ title, /** @type {import('./dom.js').Child[]} */ ...body) => h('div', { class: 'step' }, h('span', { class: 'num' + (done ? ' done' : '') }, done ? '✓' : String(n)), h('div', { class: 'grow' }, h('strong', null, title), ...body));
-  const repoIn = h('input', { id: 'repoIn2', value: S.repo, placeholder: 'owner/name, e.g. paolino/fido-box' }), tokIn = h('input', { id: 'iToken', type: 'password', autocomplete: 'off', placeholder: 'github_pat_…' });
-  const tokenHelp = [h('ol', { class: 'muted small' },
-      h('li', null, 'Open GitHub\'s token page (the button below) and sign in. A token is a password for this app to write to GitHub; it is not a security key.'), h('li', null, 'Name it, for example fido-box, and pick the longest expiry.'),
-      h('li', null, 'Repository access: "Only select repositories", then ', h('code', null, repoOk ? S.repo : 'your box repository'), '.'),
-      h('li', null, 'Permissions → Repository permissions → Contents → Read and write. Nothing else.'), h('li', null, 'Generate the token, copy it, and paste it here.')),
-    h('p', { class: 'row' }, h('a', { class: 'btn', id: 'openGh', href: 'https://github.com/settings/personal-access-tokens/new', target: '_blank', rel: 'noopener noreferrer' }, 'Open GitHub to create the token')), h('label', { for: 'iToken' }, 'GitHub token'), tokIn,
-    h('p', null, h('button', { class: 'primary', id: 'addToken', on: { click: act(async () => { const v = tokIn.value.trim(); if (!v) throw new Error('Paste the token first.');
-      await mutate(name,{kind:'set-token',id:U?.payloads.find(p=>p.type==='github-token')?.id||crypto.randomUUID(),url:'https://github.com/settings/personal-access-tokens',secret:v}); say('The token is kept in the box.'); }) } }, 'Keep it in this box'))];
-  return h('div', { class: 'card', id: 'connect' }, h('h2', null, 'Connect to GitHub ', helpButton('tokens')),
-    step(1, repoOk, 'The repository that holds your boxes',
-      repoOk ? h('p', { class: 'muted small' }, S.repo, ' · ', h('a', { href: '#/settings' }, 'change'))
-        : [h('label', { for: 'repoIn2' }, 'GitHub repository (owner/name)'), repoIn, h('p', null, h('button', { id: 'saveRepo2', on: { click: act(async () => { const v = repoIn.value.trim(); if (!REPO_RE.test(v)) throw new Error('Use owner/name.'); S.repo = v; try { localStorage.setItem('box-repo', v); } catch (e) {} S.remote = null; say('Repository set.'); }) } }, 'Save'))]),
-    step(2, hasTok, 'A GitHub token, kept inside this box',
-      hasTok ? [h('p', { class: 'muted small' }, 'A token is kept in this box. It is used only to talk to GitHub, and it is never shown.'), confirmBtn('tok', 'Remove the token', async () => { for(const token of sessions.get(name)?.payloads.filter(p=>p.type==='github-token')||[]) await mutate(name,{kind:'remove-token',id:token.id}); })]
-        : U ? tokenHelp : [h('p', { class: 'muted small' }, 'The token is stored inside the box, so unlock the box first.'), h('button', { id: 'goItems', on: { click: () => { S.tab = 'items'; render(); } } }, 'Go to Items to unlock')]),
-    step(3, conn, 'Check the connection', h('p', { class: 'muted small', id: 'connState' }, conn ? 'Connected: ' + Object.keys(S.remote||{}).length + ' box(es) on GitHub.' : (S.remoteErr || 'Not checked yet.')),
-      h('button', { id: 'testGh', disabled: !repoOk || !currentToken(), on: { click: act(async () => { await refreshRemote(); say(S.remote ? 'Connected: ' + Object.keys(S.remote||{}).length + ' box(es) on GitHub.' : S.remoteErr, !S.remote); }) } }, 'Test the connection')));
+  const tokens=sessions.get(name)?.payloads.filter(p=>p.type==='github-token')||[];
+  return h('div', {id:'connect'}, accessCard(),
+    tokens.length ? h('div',{class:'card'},h('p',null,'This box contains a legacy GitHub token. Set up access on your key for recovery from an empty browser.'),
+      confirmBtn('tok','Remove the token',async()=>{for(const token of tokens)await mutate(name,{kind:'remove-token',id:token.id});connectionChanged();})) : null,
+    h('p',{id:'connState'},S.remote?'Connected: '+Object.keys(S.remote).length+' box(es) on GitHub.':S.remoteErr),
+    h('button',{id:'testGh',disabled:!currentToken(),on:{click:act(async()=>{await refreshRemote();})}},'Test the connection'));
 }
 /** @param {string} name @param {StoredBox|undefined} rec @param {SourceDocument|null|undefined} rem */
 function syncTab(name, rec, rem) {
@@ -318,15 +312,16 @@ function syncTab(name, rec, rem) {
     h('table', null, h('tr', null, h('td', null, 'This browser'), h('td', null, rec ? 'rev ' + revision(rec.box) : '—')), h('tr', null, h('td', null, 'GitHub ' + (REPO_RE.test(S.repo) ? S.repo : '')), h('td', null, rem ? 'rev ' + revision(rem.value) : (S.remote ? 'not there' : 'not checked'))), h('tr', null, h('td', null, 'Status'), h('td', null, chip(st.t, st.c) || '—'))),
     ghUrl('boxes') ? h('p', { class: 'small', id: 'ghLinks' }, ghLink('Open on GitHub ↗', 'blob/main/boxes/' + name + '.json'), ' · ', ghLink('History ↗', 'commits/main/boxes/' + name + '.json'), ' · ', ghLink('Upload a file ↗', 'upload/main/boxes')) : null,
     h('div', { class: 'row' },
-      h('button', { class: 'primary', id: 'pushBtn', disabled: !rec || !canGh, on: { click: act(async () => { if(!rec)return; let sha; try { sha = await saveToGitHub(S.repo, tok, rec.sourceText, revision(rec.box), undefined, path); } catch (e) { if (errorInfo(e).name === 'RemoteNewer') { await refreshRemote(); render(); } throw e; } await refreshRemote(); say(sha === 'unchanged' ? 'GitHub already has exactly this box.' : 'Saved to GitHub (commit ' + sha.slice(0, 7) + ').'); }) } }, 'Push to GitHub'),
+      h('button', { class: 'primary', id: 'pushBtn', disabled: !rec || !canGh, on: { click: act(async () => { if(!rec)return; let sha; try { sha = await saveToGitHub(S.repo, tok, rec.sourceText, revision(rec.box), undefined, path, network.signal); } catch (e) { if (errorInfo(e).name === 'RemoteNewer') { await refreshRemote(); render(); } throw e; } await refreshRemote(); say(sha === 'unchanged' ? 'GitHub already has exactly this box.' : 'Saved to GitHub (commit ' + sha.slice(0, 7) + ').'); }) } }, 'Push to GitHub'),
       h('button', { id: 'pullBtn', disabled: !rem || !tok, on: { click: act(async () => { if(!records.requestLeave())return;
-        const expected=rec?.sourceText||null;
+        const expected=rec?.sourceText||null, signal=network.signal, repo=S.repo;
+        const invalidate=()=>sessions.lock(name);signal.addEventListener('abort',invalidate,{once:true});try {
         records.reset('replace');sessions.lock(name);const generation=sessions.generation(name);render();
-        const fresh=await fetchRemote(S.repo,tok,name); if(sessions.generation(name)!==generation)throw new Error('The box changed or locked during Pull. Try again.'); if(!fresh)throw new Error('That box is no longer on GitHub.');
+        const fresh=await fetchRemote(repo,tok,name,undefined,signal); signal.throwIfAborted();if(S.repo!==repo)throw new Error('GitHub connection changed during Pull. Try again.'); if(sessions.generation(name)!==generation)throw new Error('The box changed or locked during Pull. Try again.'); if(!fresh)throw new Error('That box is no longer on GitHub.');
         if(rec && revision(rec.box)>revision(fresh.value) && S.confirm!=='pull'){S.confirm='pull';say('Your copy here is newer than GitHub. Press Pull again to replace it.',true);return;}
         S.confirm='';records.reset('replace');
         const pending=sessions.replace(name,expected,fresh);render();requireResult(await pending);
-        await reload();if(S.remote)S.remote[name]=fresh;say('Pulled rev '+revision(fresh.value)+'.'); }) } }, 'Pull from GitHub'),
+        await reload();signal.throwIfAborted();if(S.remote)S.remote[name]=fresh;say('Pulled rev '+revision(fresh.value)+'.'); }finally{signal.removeEventListener('abort',invalidate);} }) } }, 'Pull from GitHub'),
       h('button', { id: 'dlBtn', disabled: !rec, on: { click: () => {if(rec)download(rec.sourceText, name + '.json');} } }, 'Download the file'),
       rec ? confirmBtn('del', 'Delete from this browser', async () => { records.reset('lock'); requireResult(await sessions.remove(name,rec.sourceText)); await reload(); location.hash = '#/'; say('Deleted "' + name + '" from this browser. GitHub is untouched.'); }, 'danger') : null),
     ));
@@ -363,15 +358,15 @@ function settingsView() {
     const saved = setInlineHelp(event.target.checked);
     helpNote.textContent = saved ? 'Inline help ' + (event.target.checked ? 'enabled' : 'disabled') + '. Saved in this browser.' : 'Changed for this page session. Browser storage is unavailable, so this choice cannot be remembered after reload.';
   } } });
-  return h('div', null, h('h1', null, 'Settings'),
+  return h('div', null, h('h1', null, 'Settings'), accessCard(),
     h('p', { class: 'muted' }, 'Choose where your encrypted boxes are backed up. Appearance is always available in the header.'),
     h('div', { class: 'card' }, h('h2', null, 'Help and documentation'), h('label', { class: 'check-row', for: 'inlineHelp' }, helpToggle, 'Show inline help'), helpNote, h('a', { href: '#/docs' }, 'Open documentation →')),
     h('div', { class: 'card' }, h('h2', null, 'Box repository ', helpButton('sync')), h('p', { class: 'muted small' }, 'One GitHub repository holds the boxes as boxes/NAME.json. The name is not secret; it is remembered in this browser.'), h('label', { for: 'repoIn' }, 'GitHub repository (owner/name)'), repo,
-      h('p', null, h('button', { class: 'primary', id: 'saveRepo', on: { click: act(async () => { const v = repo.value.trim(); if (!REPO_RE.test(v)) throw new Error('Use owner/name.'); S.repo = v; try { localStorage.setItem('box-repo', v); } catch (e) {} S.remote = null; say('Repository set.'); }) } }, 'Save'))),
-    h('div', { class: 'card' }, h('h2', null, 'GitHub access ', helpButton('tokens')), h('p', { class: 'muted small' }, 'Normally the token is kept inside a box and used once you unlock it. To look at GitHub before unlocking anything, paste a token for this session only; it is not stored. Create one at ',
+      h('p', null, h('button', { class: 'primary', id: 'saveRepo', on: { click: act(async () => { const v = repo.value.trim(); if (!REPO_RE.test(v)) throw new Error('Use owner/name.'); if(keyAccess.view().busy)keyAccess.cancel(); connectionChanged(); S.repo = v; try { localStorage.setItem('box-repo', v); } catch (e) {} S.remote = null; say('Repository set.'); }) } }, 'Save'))),
+    h('div', { class: 'card' }, h('h2', null, 'GitHub access ', helpButton('tokens')), h('p', { class: 'muted small' }, 'Temporary access for this browser session. For recovery on another browser, use Set up key above. Create a token at ',
       h('a', { href: 'https://github.com/settings/personal-access-tokens/new', target: '_blank', rel: 'noopener noreferrer' }, 'github.com/settings/personal-access-tokens/new'), ': only the box repository, Contents read and write.'),
-      h('label', { for: 'tokIn' }, 'GitHub token'), tok, h('p', { class: 'row' }, h('button', { id: 'useTok', on: { click: act(async () => { S.token = tok.value.trim(); tok.value = ''; await refreshRemote(); say(S.remote ? 'Connected: ' + Object.keys(S.remote||{}).length + ' box(es) on GitHub.' : S.remoteErr, !S.remote); }) } }, 'Use for this session'),
-        S.token ? h('button', { on: { click: () => { S.token = ''; S.remote = null; render(); } } }, 'Forget it') : null)));
+      h('label', { for: 'tokIn' }, 'GitHub token'), tok, h('p', { class: 'row' }, h('button', { id: 'useTok', on: { click: act(async () => { keyAccess.disconnect(); explicitAccess=true; connectionChanged(); S.token = tok.value.trim(); tok.value = ''; await refreshRemote(); say(S.remote ? 'Connected: ' + Object.keys(S.remote||{}).length + ' box(es) on GitHub.' : S.remoteErr, !S.remote); }) } }, 'Use for this session'),
+        S.token ? h('button', { on: { click: () => { keyAccess.disconnect(); S.token = ''; connectionChanged(); render(); } } }, 'Forget it') : null)));
 }
 
 // ---------- routing ----------
@@ -392,10 +387,10 @@ let acceptedHash=location.hash;
 window.addEventListener('hashchange', () => {
   if(location.hash===acceptedHash)return;
   if(!records.requestLeave()){history.replaceState(null,'',acceptedHash||'#/');return;}
-  records.reset('leave');recordBox='';acceptedHash=location.hash;closeHelp();S.confirm='';render();
+  if(keyAccess.view().busy)keyAccess.cancel();records.reset('leave');recordBox='';acceptedHash=location.hash;closeHelp();S.confirm='';render();
 });
 window.addEventListener('beforeunload',event=>{if(records.dirty()){event.preventDefault();event.returnValue='';}});
-window.addEventListener('pagehide',()=>{records.reset('lock');for(const rec of S.boxes)sessions.lock(rec.name);clipboard.dispose();});
+window.addEventListener('pagehide',()=>{keyAccess.disconnect();records.reset('lock');for(const rec of S.boxes)sessions.lock(rec.name);clipboard.dispose();});
 reload().then(render).catch((e) => { $app.textContent = 'This browser cannot keep a library of boxes: ' + e.message; });
 // which commit of the code is being served (the deployment writes COMMIT next to the app)
 fetch('COMMIT', { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')).then((t) => { const sha = t.trim(); if (/^[0-9a-f]{40}$/.test(sha)) { const a = /** @type {HTMLAnchorElement} */(document.getElementById('commitLink')); a.textContent = sha.slice(0, 7); a.href = 'https://github.com/lambdasistemi/fido2box/commit/' + sha; a.hidden = false; } }).catch(() => {});

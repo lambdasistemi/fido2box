@@ -37,7 +37,7 @@ solo; independent model-reader and audit claims are unavailable in that mode.
 
 - `readAccess(signal)` discovers with no allow-list, validates credential type,
   UV, PRF and stored envelope, and returns access plus its credential reference.
-- `saveAccess(access, reference, signal)` creates a fresh credential when no
+- `saveAccess(access, signal, reference)` creates a fresh credential when no
   reference is supplied, or updates the verified reference. Returns success only
   after authenticated decryption of the exact read-back payload.
 - The session exposes connect, save, cancel/disconnect and a secret-free view.
@@ -60,8 +60,11 @@ solo; independent model-reader and audit claims are unavailable in that mode.
 | Preserve existing box cryptography               | Rewrite boxes just to change GitHub login             | Frozen fixtures, all existing record/session/browser tests                                   |
 | Cancel stale connection work                     | Global mutable token read after awaits                | Deferred key and fetch results, connection switch during Pull/Push                           |
 
-Behavioral RED precedes implementation. Tests run through existing unit/browser
-entrypoints, strict checkJs, Just/Nix gates and site smoke. Documentation will
-carry the recovery flow diagram and the exact device/portability limits. Any new
-abstract connection proof is explicitly separate from browser/hardware
-conformance; no broad formal-design acceptance follows from this solo fix.
+The empty-library behavioral RED preceded implementation. Authenticator failure
+controls were added with the implementation, not executed against prior stubs;
+do not describe those controls as test-first evidence. Tests run through
+existing unit/browser entrypoints, strict checkJs, Just/Nix gates and site
+smoke. Documentation will carry the recovery flow diagram and the exact
+device/portability limits. Any new abstract connection proof is explicitly
+separate from browser/hardware conformance; no broad formal-design acceptance
+follows from this solo fix.

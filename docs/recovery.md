@@ -7,11 +7,33 @@ recovering it from an encrypted file and a spare enrolled key.
    security key. Keep a separate backup key and enroll it while the box is open.
 2. Add the recovery items you need. Download the encrypted JSON file and keep a
    copy outside this browser. The key alone cannot recreate the box file.
-3. Optionally connect a private GitHub repository through Settings and Sync. Use
-   a fine-grained token limited to that repository with Contents read/write.
-   Push is explicit; local changes are not automatically backed up.
-4. Test recovery in another browser: import the backup, unlock with each
-   enrolled key, and verify the required items are present.
+3. Choose **Set up key** on Boxes to store GitHub access encrypted on your key.
+   Enter the repository and a fine-grained token limited to that repository with
+   Contents read/write. Follow each PIN/touch prompt until the app confirms it
+   read the saved access back. Push your boxes from Sync; local changes are not
+   automatically backed up.
+4. Test recovery in another browser: choose **Connect with security key**,
+   select the GitHub access credential, then Pull a listed box from Sync. Unlock
+   with an enrolled key and verify the required items are present. You can also
+   import a downloaded backup without GitHub access.
+
+<!-- diagram: key-access-recovery -->
+
+GitHub access is stored separately from the box, so fetching the box never
+requires opening it. The key needs discoverable credentials, PRF and largeBlob
+support, and the browser must expose all three. A failed or unsupported setup is
+reported without claiming that recovery is ready. Token expiry or revocation
+still requires a new token from GitHub: connect with the key, then choose
+**Renew access**. A cancelled request cannot determine whether a key is empty.
+
+Setup creates a dedicated GitHub access credential. Renewal updates the
+credential selected during connection. Setting up another profile uses another
+resident credential slot. Resetting the key erases its profile. Configure spare
+keys separately; enrolling a key in a box does not copy GitHub access onto it.
+
+The
+[key-held access design](https://github.com/lambdasistemi/fido2box/blob/main/specs/034-key-held-github/plan.md)
+describes the storage format, encryption domain and cancellation boundaries.
 
 Credentials belong to the original domain. A rehearsal at `http://localhost`
 creates different credentials. Renew the production domain and preserve the box

@@ -3,6 +3,7 @@
 // that a key returns (its PRF output) is handed to crypto.js. Every request asks for the PIN (user verification) and times out after a minute.
 import { unb64, b64, unwrapDataKey, wrapDataKey, enc, dec } from './crypto.js';
 import { keysOf } from './box-format.js';
+import { isAccessHandle } from './key-access-codec.js';
 
 /** @typedef {import('./box-format.js').Box} Box */
 
@@ -122,5 +123,5 @@ export async function readLabel() {
   try { a = /** @type {PublicKeyCredential | null} */ (await navigator.credentials.get({ publicKey: { challenge: rand(32), rpId: RP, userVerification: 'required', timeout: 60000 } })); }
   catch (e) { throw Object.assign(new Error('Reading the label failed: ' + why(e)), { original: /** @type {{ name?: string }} */ (e).name }); }
   const h = a ? /** @type {AuthenticatorAssertionResponse} */ (a.response).userHandle : null;
-  return h && h.byteLength ? dec.decode(h) : '';
+  return h && h.byteLength && !isAccessHandle(h) ? dec.decode(h) : '';
 }
