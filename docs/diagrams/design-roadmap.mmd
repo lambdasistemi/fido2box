@@ -1,0 +1,4 @@
+flowchart TB
+  Decisions[Settle lifecycle decisions] -->|Model| Session[Safe replacement]
+  Session -->|Prerequisite| Records[Lossless record migration]
+  Records -->|Verify| Delivery[Conformance and recovery]

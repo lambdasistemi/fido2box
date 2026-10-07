@@ -1,0 +1,30 @@
+{
+  "theme": "base",
+  "themeVariables": {
+    "fontFamily": "DejaVu Sans, sans-serif",
+    "fontSize": "15px",
+    "primaryColor": "#e6f3ef",
+    "primaryTextColor": "#17252b",
+    "primaryBorderColor": "#086b60",
+    "lineColor": "#426b68",
+    "secondaryColor": "#edf3f2",
+    "tertiaryColor": "#f4f7f7"
+  },
+  "flowchart": {
+    "htmlLabels": false,
+    "useMaxWidth": false,
+    "nodeSpacing": 16,
+    "rankSpacing": 35,
+    "curve": "linear"
+  },
+  "sequence": {
+    "useMaxWidth": false,
+    "actorMargin": 25,
+    "messageMargin": 28,
+    "width": 100,
+    "wrap": true
+  },
+  "er": { "useMaxWidth": false, "minEntityWidth": 90, "entityPadding": 10 },
+  "state": { "useMaxWidth": false },
+  "deterministicIds": true
+}

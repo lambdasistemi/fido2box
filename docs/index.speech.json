@@ -1,0 +1,12 @@
+{
+  "recovery-story": [
+    {
+      "text": "If you lose your everyday device, recover using a saved encrypted box and an enrolled key at the original website. Import the box, unlock it, then explicitly open an address or copy a secret. Start with the recovery guide. Maintainers can follow the architecture and design work plan.",
+      "pause": 400
+    }
+  ],
+  "_source": {
+    "file": "index.md",
+    "sha256": "09b256402eaba84cfd045a6386f6189037903db9fb4d8a8153daeabb5882380e"
+  }
+}
