@@ -8,9 +8,12 @@ const WEB = path.join(__dirname, '..', 'web'); let n = 0, fails = 0;
 const ok = (c, m) => { n++; if (c) console.log('ok  ' + m); else { fails++; console.log('FAIL ' + m); } };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
-const server = http.createServer((q, r) => {
+let delayFirstApp = true;
+const server = http.createServer(async (q, r) => {
   const p = decodeURIComponent(q.url.split('?')[0]).replace(/^\//, '') || 'index.html';
   if (p === 'COMMIT') { r.writeHead(200); return r.end('0123456789abcdef0123456789abcdef01234567\n'); }
+  // Exercise startup readiness on every run, beyond the former fixed 800ms wait.
+  if (p === 'app.js' && delayFirstApp) { delayFirstApp = false; await sleep(1500); }
   fs.readFile(path.join(WEB, p), (e, d) => { if (e) { r.writeHead(404); return r.end(); } r.writeHead(200, { 'content-type': TYPES[path.extname(p)] || 'text/plain' }); r.end(d); });
 });
 // the library, read straight from IndexedDB by the test (the app keeps its own copy of this code in a module)
@@ -56,7 +59,10 @@ async function main() {
   const click = (s) => run(`${q(s)}.click()`); const fill = (s, v) => run(`${q(s)}.value = ${JSON.stringify(v)}`);
   const text = () => run('document.body.innerText'); const has = async (t) => (await text()).includes(t);
   const btn = (label) => run(`[...document.querySelectorAll('button,a.btn')].find((b) => b.textContent.trim() === ${JSON.stringify(label)}).click()`);
-  const open = async (hash = '') => { await send('Page.navigate', { url: 'about:blank' }); await send('Page.navigate', { url: base + hash }); if (!await until("document.readyState === 'complete' && !!document.querySelector('#app')?.firstElementChild")) throw new Error('App did not render after navigation'); };   // always a real reload
+  const open = async (hash = '') => {   // always a real reload, including its asynchronous first render
+    await send('Page.navigate', { url: 'about:blank' }); await send('Page.navigate', { url: base + hash });
+    if (!await until(`location.href === ${JSON.stringify(base + hash)} && document.readyState === 'complete' && !!document.querySelector('#app > *')`)) throw new Error('App did not render after navigation to ' + base + hash);
+  };
   const screenshot = async (name) => {
     if (!process.env.FIDO_UI_SCREENSHOTS) return;
     fs.mkdirSync(process.env.FIDO_UI_SCREENSHOTS, { recursive: true });

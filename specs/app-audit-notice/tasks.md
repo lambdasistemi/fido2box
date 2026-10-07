@@ -11,3 +11,9 @@ browser checks, plus formatting, lint, runtime boundary, and strict docs.
 Independent parent review reran the full gate successfully and inspected phone
 light and desktop dark screenshots. Application crypto/session code is
 unchanged.
+
+Hosted CI exposed a fixed-delay startup race in two existing assertions. With a
+controlled 1.5-second first-module delay, the original test failed (115/120).
+Replacing the fixed wait with bounded document/first-render readiness passed all
+120 checks. The delay remains as regression coverage. Both agent and independent
+parent full CI reruns passed; production code did not change.
