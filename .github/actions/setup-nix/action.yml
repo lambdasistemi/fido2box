@@ -1,0 +1,22 @@
+name: Set up Nix and Cachix
+description:
+  Install Nix and configure the public paolino cache with optional uploads
+inputs:
+  cachix-auth-token:
+    description: Cache upload token; omit for read-only access on fork PRs
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - uses: cachix/install-nix-action@v31.11.1
+      with:
+        extra_nix_config: |
+          trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= paolino.cachix.org-1:ecmgO3CXdgSWA2cHlm4srknd/cLFMLmK3i3NrzeDFaE=
+          substituters = https://cache.iog.io https://cache.nixos.org/ https://paolino.cachix.org
+          accept-flake-config = true
+    - uses: cachix/cachix-action@v17
+      with:
+        name: paolino
+        authToken: ${{ inputs.cachix-auth-token }}
+        skipPush: ${{ inputs.cachix-auth-token == '' }}
